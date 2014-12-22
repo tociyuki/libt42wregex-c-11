@@ -76,9 +76,9 @@ void vmengine::runthread (
     std::vector<vmthread>* const que, int const from, int const ip,
     std::shared_ptr<std::vector<int>>& capture)
 {
-    for (int i = from; i < que->size (); i++) {
-        if (que->at (i).ip == ip) {
-            que->at (i).capture = capture;
+    for (auto p = que->begin () + from; p != que->end (); ++p) {
+        if ((*p).ip == ip) {
+            (*p).capture = capture;
             return;
         }
     }
