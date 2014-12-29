@@ -36,9 +36,7 @@ private:
     bool digits (T& value, int const base, int const len);
     template<typename T>
     bool translit (wchar_t ch, T& x, std::wstring&& from, std::basic_string<T>&& to);
-    bool is7alnum (wchar_t ch);
-    int toi7casec (wchar_t ch);
-    bool is7casedigit (wchar_t const ch, int const base);
+    int c7toi (wchar_t ch);
 };
 
 class vmalt_node : public vmnode {
@@ -342,7 +340,7 @@ bool vmparser::cesc (wchar_t& ch)
                 std::wstring(L"\t\n\r\x0c\x07\x1b"))) {
             ++mpos;
         }
-        else if (is7casedigit (mstr[mpos], 8)) {
+        else if (c7toi (mstr[mpos]) < 8) {
             digits (ch, 8, 3);
         }
         else if (mstr[mpos] >= L' ' && mstr[mpos] != 0x7f) {
@@ -358,8 +356,8 @@ bool vmparser::cesc (wchar_t& ch)
 
 bool vmparser::cescxdigit (wchar_t& ch)
 {
-    if (is7casedigit (mstr[mpos], 16) && is7casedigit (mstr[mpos + 1], 16)) {
-        ch = toi7casec (mstr[mpos]) * 16 + toi7casec (mstr[mpos + 1]);
+    if (c7toi (mstr[mpos]) < 16 && c7toi (mstr[mpos + 1]) < 16) {
+        ch = c7toi (mstr[mpos]) * 16 + c7toi (mstr[mpos + 1]);
         mpos += 2;
     }
     else if (mstr[mpos] == L'{') {
@@ -376,11 +374,11 @@ bool vmparser::cescxdigit (wchar_t& ch)
 template<typename T>
 bool vmparser::digits (T& value, int const base, int const len)
 {
-    if (! is7casedigit (mstr[mpos], base))
+    if (c7toi (mstr[mpos]) >= base)
         return false;
     T n = 0;
-    for (int i = 0; i < len && is7casedigit (mstr[mpos], base); i++)
-        n = n * base + toi7casec (mstr[mpos++]);
+    for (int i = 0; i < len && c7toi (mstr[mpos]) < base; i++)
+        n = n * base + c7toi (mstr[mpos++]);
     value = n;
     return true;
 }
@@ -396,23 +394,12 @@ bool vmparser::translit (wchar_t ch, T& x,
     return true;
 }
 
-bool vmparser::is7alnum (wchar_t ch)
-{
-    return (ch >= L'0' && ch <= L'9')
-        || (ch >= L'a' && ch <= L'z') || (ch >= L'A' && ch <= L'Z');
-}
-
-int vmparser::toi7casec (wchar_t ch)
+int vmparser::c7toi (wchar_t ch)
 {
     return (ch >= L'0' && ch <= L'9') ? ch - L'0'
           : (ch >= L'a' && ch <= L'z') ? ch - L'a' + 10
           : (ch >= L'A' && ch <= L'Z') ? ch - L'A' + 10
-          : 0;
-}
-
-bool vmparser::is7casedigit (wchar_t const ch, int const base)
-{
-    return is7alnum (ch) && toi7casec (ch) < base;
+          : 36;
 }
 
 void vmnode::generate (std::vector<vmcode>& prog)
