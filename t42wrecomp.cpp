@@ -46,15 +46,15 @@ bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
     while (L'|' == mstr[mpos]) {
         ++mpos;
         std::vector<vmcode> rhs;
-        if (! compile_cat (lhs))
+        if (! compile_cat (rhs))
             return false;
         std::size_t lhs_size = lhs.size ();
         std::size_t rhs_size = rhs.size ();
         if (lhs_size == 0 && rhs_size == 0)
             continue;
         lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, 0, lhs_size + 1));
-        lhs.push_back (vmcode (vmcode::SPLIT, 0, rhs_size));
-        lhs.insert (lhs.end (), lhs.begin (), lhs.end ());
+        lhs.push_back (vmcode (vmcode::JMP, rhs_size, 0));
+        lhs.insert (lhs.end (), rhs.begin (), rhs.end ());
     }
     prog.insert (prog.end (), lhs.begin (), lhs.end ());
     return true;
