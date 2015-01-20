@@ -33,8 +33,6 @@ struct vmcode {
     std::shared_ptr<std::vector<vmspan>> span;
     vmcode (operation a, int b, int c)
         : opcode (a), addr0 (b), addr1 (c), ch (), span () { }
-    vmcode (operation a, int b)
-        : opcode (a), addr0 (b), addr1 (), ch (), span () { }
     vmcode (operation a, wchar_t b)
         : opcode (a), addr0 (), addr1 (), ch (b), span () { }
     vmcode (operation a, std::shared_ptr<std::vector<vmspan>>& b)

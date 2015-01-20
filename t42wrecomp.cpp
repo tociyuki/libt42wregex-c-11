@@ -93,7 +93,7 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
                 lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, 0, lhs_size + 1));
             else
                 lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, lhs_size + 1, 0));
-            lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2)));
+            lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
         }
         else if (L'+' == quorifier) {
             if (greedy)
@@ -127,10 +127,10 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
     else if (L'(' == mstr[mpos]) {
         ++mpos;
         int n = ++mgroup;
-        prog.push_back (vmcode (vmcode::SAVE, n * 2));
+        prog.push_back (vmcode (vmcode::SAVE, n * 2, 0));
         if (! compile_exp (prog))
             return false;
-        prog.push_back (vmcode (vmcode::SAVE, n * 2 + 1));
+        prog.push_back (vmcode (vmcode::SAVE, n * 2 + 1, 0));
         if (mstr[mpos++] != L')')
             return false;
     }
