@@ -12,9 +12,6 @@ class vmcompiler {
 public:
     bool compile (std::wstring str, std::vector<vmcode>& prog);
 private:
-    static const std::wstring marker;
-    static const std::wstring escapefrom;
-    static const std::wstring escapeto;
     std::wstring mstr;
     int mpos;
     int mgroup;
@@ -28,10 +25,6 @@ private:
     bool digits (T& value, int const base, int const len);
     int c7toi (wchar_t ch);
 };
-
-const std::wstring vmcompiler::marker (L"AbBz");
-const std::wstring vmcompiler::escapefrom (L"aetnr");
-const std::wstring vmcompiler::escapeto (L"\x07\x1b\t\n\r");
 
 bool vmcompiler::compile (std::wstring str, std::vector<vmcode>& prog)
 {
