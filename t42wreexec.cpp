@@ -15,7 +15,7 @@ bool vmspan::member (wchar_t const c)
             return true;
     }
     else if (RANGE == type) {
-        if (c >= from && c <= last)
+        if (str[0] <= c && c <= str[1])
             return true;
     }
     return false;
@@ -166,11 +166,11 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                     run->at (th--).ip = ip + 1;
                 break;
             case vmcode::JMP:
-                run->at (th--).ip = prog[ip].addr0;
+                run->at (th--).ip = prog[ip].addr0 + ip + 1;
                 break;
             case vmcode::SPLIT:
-                runthread (run, th + 1, prog[ip].addr1, cap);
-                run->at (th--).ip = prog[ip].addr0;
+                runthread (run, th + 1, prog[ip].addr1 + ip + 1, cap);
+                run->at (th--).ip = prog[ip].addr0 + ip + 1;
                 break;
             default:
                 break;
@@ -196,4 +196,3 @@ int wregex::exec (std::wstring str, std::vector<int>& capture,
 }
 
 }//namespace t42
-

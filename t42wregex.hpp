@@ -12,10 +12,12 @@ namespace wpike {
 struct vmspan {
     enum { STR, RANGE } type;
     std::wstring str;
-    wchar_t from;
-    wchar_t last;
-    vmspan (std::wstring a) : type (STR), str (a), from (), last () { }
-    vmspan (wchar_t a, wchar_t b) : type (RANGE), str (), from (a), last (b) { }
+    vmspan (std::wstring a) : type (STR), str (a) { }
+    vmspan (wchar_t a, wchar_t b) : type (RANGE), str ()
+    {
+        str.push_back (a);
+        str.push_back (b);
+    }
     bool member (wchar_t const c);
 };
 
@@ -48,7 +50,7 @@ class regex_error {};
 class wregex {
 public:
     enum {notmatch = -1};
-    wregex (std::wstring s) throw (regex_error);
+    wregex (std::wstring s);
     int exec (std::wstring str, std::vector<int>& capture,
         std::wstring::size_type const pos);
 private:
@@ -57,4 +59,3 @@ private:
 
 }//namespace t42
 #endif
-
