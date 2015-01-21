@@ -136,7 +136,7 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                     runthread (rdy, 0, ip + 1, cap);
                 break;
             case vmcode::NCCLASS:
-                if (sp < str.size () && incclass (str[sp], prog[ip].span))
+                if (sp < str.size () && ! incclass (str[sp], prog[ip].span))
                     runthread (rdy, 0, ip + 1, cap);
                 break;
             case vmcode::BOS:
