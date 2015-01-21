@@ -191,8 +191,8 @@ bool vmcompiler::compile_cclass (std::vector<vmcode>& prog)
 bool vmcompiler::compile_char (wchar_t& ch)
 {
     std::wstring::size_type idx;
-    static const std::wstring pat1 (L"aetnr");
-    static const std::wstring val1 (L"\x07\x1b\t\n\r");
+    static const std::wstring pat1 (L"aeftnr");
+    static const std::wstring val1 (L"\x07\x1b\f\t\n\r");
 
     if (L'\0' == mstr[mpos])
         return false;
