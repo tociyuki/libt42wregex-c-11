@@ -40,6 +40,7 @@ bool vmcompiler::compile (std::wstring str, std::vector<vmcode>& prog)
 
 bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
 {
+    std::vector<std::size_t> patch;
     std::vector<vmcode> lhs;
     if (! compile_cat (lhs))
         return false;
@@ -52,11 +53,16 @@ bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
         std::size_t rhs_size = rhs.size ();
         if (lhs_size == 0 && rhs_size == 0)
             continue;
-        lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, 0, lhs_size + 1));
-        lhs.push_back (vmcode (vmcode::JMP, rhs_size, 0));
-        lhs.insert (lhs.end (), rhs.begin (), rhs.end ());
+        prog.insert (prog.end (), vmcode (vmcode::SPLIT, 0, lhs_size + 1));
+        prog.insert (prog.end (), lhs.begin (), lhs.end ());
+        patch.push_back (prog.size ());
+        prog.push_back (vmcode (vmcode::JMP, 0, 0));
+        lhs = std::move (rhs);
     }
     prog.insert (prog.end (), lhs.begin (), lhs.end ());
+    std::size_t ip = prog.size ();
+    for (auto a : patch)
+        prog[a].addr0 = ip - a - 1;
     return true;
 }
 
@@ -117,21 +123,17 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
     static const std::vector<vmcode::operation> op2{
         vmcode::BOS, vmcode::NWORDB, vmcode::WORDB, vmcode::EOS};
 
-    if (mstr.compare (mpos, 3, L"(\x3f:") == 0) { // L"(?:"
-        mpos += 3;
+    if (L'(' == mstr[mpos]) {
+        int skip = mstr.compare (mpos, 3, L"(\x3f:") == 0 ? 3 : 1;
+        mpos += skip;
+        int n = mgroup + 1;
+        if (skip == 1)
+            prog.push_back (vmcode (vmcode::SAVE, (++mgroup) * 2, 0));
         if (! compile_exp (prog))
             return false;
-        if (mstr[mpos++] != L')')
-            return false;
-    }
-    else if (L'(' == mstr[mpos]) {
-        ++mpos;
-        int n = ++mgroup;
-        prog.push_back (vmcode (vmcode::SAVE, n * 2, 0));
-        if (! compile_exp (prog))
-            return false;
-        prog.push_back (vmcode (vmcode::SAVE, n * 2 + 1, 0));
-        if (mstr[mpos++] != L')')
+        if (skip == 1)
+            prog.push_back (vmcode (vmcode::SAVE, n * 2 + 1, 0));
+        if (L')' != mstr[mpos++])
             return false;
     }
     else if (L'[' == mstr[mpos]) {
@@ -230,7 +232,7 @@ bool vmcompiler::compile_char (wchar_t& ch)
         else if (! digits (ch, 16, 2))
             return false;
     }
-    else if ((mstr[mpos] < L'\0' || L'\x1f' < mstr[mpos]) && mstr[mpos] != '\x7f') {
+    else if ((mstr[mpos] < L'\0' || L'\x1f' < mstr[mpos]) && '\x7f' != mstr[mpos]) {
         ch = mstr[mpos];
     }
     else
