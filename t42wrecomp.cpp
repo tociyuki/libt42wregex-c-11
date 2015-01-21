@@ -201,8 +201,10 @@ bool vmcompiler::compile_char (wchar_t& ch)
         return true;
     }
     ++mpos;
-    if ((idx = pat1.find (mstr[mpos])) != std::wstring::npos)
+    if ((idx = pat1.find (mstr[mpos])) != std::wstring::npos) {
         ch = val1[idx];
+        ++mpos;
+    }
     else if (c7toi (mstr[mpos]) < 8) {
         if (! digits (ch, 8, 3))
             return false;

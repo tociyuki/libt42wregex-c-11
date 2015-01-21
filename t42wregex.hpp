@@ -50,6 +50,7 @@ public:
     wregex (std::wstring s);
     int exec (std::wstring str, std::vector<int>& capture,
         std::wstring::size_type const pos);
+    std::vector<wpike::vmcode> get_prog() { return prog; }
 private:
     std::vector<wpike::vmcode> prog;
 };
