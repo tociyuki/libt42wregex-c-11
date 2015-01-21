@@ -5,7 +5,6 @@
 #include "t42wregex.hpp"
 
 namespace t42 {
-
 namespace wpike {
 
 bool vmspan::member (wchar_t const c)
@@ -53,13 +52,9 @@ bool vmengine::iswordboundary (std::wstring& str, int sp)
         return sp < str.size () && isword (str[sp]);
     else if (sp >= str.size ())
         return sp - 1 < str.size () && isword (str[sp - 1]);
-    else if (! isword (str[sp - 1]) && isword (str[sp]))
+    else if (isword (str[sp - 1]) ^ isword (str[sp]))
         return true;
-    else if (isword (str[sp - 1]) && ! isword (str[sp]))
-        return true;
-    else if (sp + 1 < str.size() && isword (str[sp]) && ! isword (str[sp + 1]))
-        return true;
-    else if (sp + 1 < str.size() && ! isword (str[sp]) && isword (str[sp + 1]))
+    else if (sp + 1 < str.size() && (isword (str[sp]) ^ isword (str[sp + 1])))
         return true;
     return false;
 }
@@ -76,12 +71,11 @@ void vmengine::runthread (
     std::vector<vmthread>* const que, int const from, int const ip,
     std::shared_ptr<std::vector<int>>& capture)
 {
-    for (auto p = que->begin () + from; p != que->end (); ++p) {
-        if ((*p).ip == ip) {
-            (*p).capture = capture;
+    for (auto p = que->begin () + from; p != que->end (); ++p)
+        if (p->ip == ip) {
+            p->capture = capture;
             return;
         }
-    }
     vmthread th (ip, capture);
     que->push_back (th);
 }

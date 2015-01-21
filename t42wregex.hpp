@@ -6,7 +6,6 @@
 #include <memory>
 
 namespace t42 {
-
 namespace wpike {
 
 struct vmspan {

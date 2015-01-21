@@ -5,7 +5,6 @@
 #include "t42wregex.hpp"
 
 namespace t42 {
-
 namespace wpike {
 
 class vmcompiler {
@@ -49,18 +48,16 @@ bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
         std::vector<vmcode> rhs;
         if (! compile_cat (rhs))
             return false;
-        std::size_t lhs_size = lhs.size ();
-        std::size_t rhs_size = rhs.size ();
-        if (lhs_size == 0 && rhs_size == 0)
+        if (lhs.size () == 0 && rhs.size () == 0)
             continue;
-        prog.insert (prog.end (), vmcode (vmcode::SPLIT, 0, lhs_size + 1));
+        prog.insert (prog.end (), vmcode (vmcode::SPLIT, 0, lhs.size () + 1));
         prog.insert (prog.end (), lhs.begin (), lhs.end ());
         patch.push_back (prog.size ());
         prog.push_back (vmcode (vmcode::JMP, 0, 0));
         lhs = std::move (rhs);
     }
     prog.insert (prog.end (), lhs.begin (), lhs.end ());
-    std::size_t ip = prog.size ();
+    std::size_t const ip = prog.size ();
     for (auto a : patch)
         prog[a].addr0 = ip - a - 1;
     return true;
@@ -68,12 +65,10 @@ bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
 
 bool vmcompiler::compile_cat (std::vector<vmcode>& prog)
 {
-    if (! compile_term (prog))
-        return false;
-    while (L'|' != mstr[mpos] && L')' != mstr[mpos] && L'\0' != mstr[mpos]) {
+    do {
         if (! compile_term (prog))
             return false;
-    }
+    } while (L'|' != mstr[mpos] && L')' != mstr[mpos] && L'\0' != mstr[mpos]);
     return true;
 }
 
@@ -82,30 +77,26 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
     std::vector<vmcode> lhs;
     if (! compile_factor (lhs))
         return false;
-    int lhs_size = lhs.size (); // must be int not std::size_t
+    int const lhs_size = lhs.size (); // must be int not std::size_t
     if (L'\x3f' == mstr[mpos] || L'*' == mstr[mpos] || L'+' == mstr[mpos]) {
-        wchar_t quorifier = mstr[mpos++];
-        bool greedy = mstr[mpos] != L'\x3f';
+        wchar_t const quorifier = mstr[mpos++];
+        bool const greedy = mstr[mpos] != L'\x3f';
         if (! greedy)
             ++mpos;
-        if (L'\x3f' == quorifier) {
-            if (greedy)
-                lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, 0, lhs_size));
-            else
-                lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, lhs_size, 0));
-        }
-        else if (L'*' == quorifier) {
-            if (greedy)
-                lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, 0, lhs_size + 1));
-            else
-                lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, lhs_size + 1, 0));
-            lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
-        }
-        else if (L'+' == quorifier) {
+        if (L'+' == quorifier) {
             if (greedy)
                 lhs.push_back (vmcode (vmcode::SPLIT, 0, -(lhs_size + 1)));
             else
                 lhs.push_back (vmcode (vmcode::SPLIT, -(lhs_size + 1), 0));
+        }
+        else {
+            int const disp = L'*' == quorifier ? lhs_size + 1 : lhs_size;
+            if (greedy)
+                lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, 0, disp));
+            else
+                lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, disp, 0));
+            if (L'*' == quorifier)
+                lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
         }
     }
     prog.insert (prog.end (), lhs.begin (), lhs.end ());
@@ -124,9 +115,9 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
         vmcode::BOS, vmcode::NWORDB, vmcode::WORDB, vmcode::EOS};
 
     if (L'(' == mstr[mpos]) {
-        int skip = mstr.compare (mpos, 3, L"(\x3f:") == 0 ? 3 : 1;
+        int const skip = mstr.compare (mpos, 3, L"(\x3f:") == 0 ? 3 : 1;
         mpos += skip;
-        int n = mgroup + 1;
+        int const n = mgroup + 1;
         if (skip == 1)
             prog.push_back (vmcode (vmcode::SAVE, (++mgroup) * 2, 0));
         if (! compile_exp (prog))
@@ -150,12 +141,10 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
         prog.push_back (vmcode (op2[idx]));
         mpos += 2;
     }
-    else if (compile_char (ch)) {
+    else if (compile_char (ch))
         prog.push_back (vmcode (vmcode::CHAR, ch));
-    }
-    else {
+    else
         return false;
-    }
     return true;
 }
 
@@ -172,13 +161,12 @@ bool vmcompiler::compile_cclass (std::vector<vmcode>& prog)
         ++count;
         if (count && L']' == mstr[mpos])
             break;
-        if (count && L'-' == mstr[mpos]
-                && (L'\0' == mstr[mpos + 1] || L']' != mstr[mpos + 1]))
+        if (count && L'-' == mstr[mpos] && L']' != mstr[mpos + 1])
             return false;
         if (! compile_char (ch))
             return false;
         spanstr.push_back (ch);
-        if (L'-' != mstr[mpos] || L'\0' == mstr[mpos] || L']' == mstr[mpos + 1])
+        if (L'-' != mstr[mpos] || L']' == mstr[mpos + 1])
             continue;
         spanstr.pop_back ();
         if (spanstr.size () > 0)
@@ -213,9 +201,8 @@ bool vmcompiler::compile_char (wchar_t& ch)
         return true;
     }
     ++mpos;
-    if ((idx = pat1.find (mstr[mpos])) != std::wstring::npos) {
+    if ((idx = pat1.find (mstr[mpos])) != std::wstring::npos)
         ch = val1[idx];
-    }
     else if (c7toi (mstr[mpos]) < 8) {
         if (! digits (ch, 8, 3))
             return false;
@@ -224,17 +211,14 @@ bool vmcompiler::compile_char (wchar_t& ch)
         ++mpos;
         if (L'{' == mstr[mpos]) {
             ++mpos;
-            if (! digits (ch, 16, 8))
-                return false;
-            if (L'}' != mstr[mpos++])
+            if (! digits (ch, 16, 8) || L'}' != mstr[mpos++])
                 return false;
         }
         else if (! digits (ch, 16, 2))
             return false;
     }
-    else if ((mstr[mpos] < L'\0' || L'\x1f' < mstr[mpos]) && '\x7f' != mstr[mpos]) {
+    else if ((mstr[mpos] < L'\0' || L'\x1f' < mstr[mpos]) && '\x7f' != mstr[mpos])
         ch = mstr[mpos++];
-    }
     else
         return false;
     return true;
@@ -245,10 +229,9 @@ bool vmcompiler::digits (T& value, int const base, int const len)
 {
     if (c7toi (mstr[mpos]) >= base)
         return false;
-    T n = 0;
+    value = 0;
     for (int i = 0; i < len && c7toi (mstr[mpos]) < base; i++)
-        n = n * base + c7toi (mstr[mpos++]);
-    value = n;
+        value = value * base + c7toi (mstr[mpos++]);
     return true;
 }
 
