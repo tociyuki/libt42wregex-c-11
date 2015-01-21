@@ -85,9 +85,9 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
             ++mpos;
         if (L'+' == quorifier) {
             if (greedy)
-                lhs.push_back (vmcode (vmcode::SPLIT, 0, -(lhs_size + 1)));
-            else
                 lhs.push_back (vmcode (vmcode::SPLIT, -(lhs_size + 1), 0));
+            else
+                lhs.push_back (vmcode (vmcode::SPLIT, 0, -(lhs_size + 1)));
         }
         else {
             int const disp = L'*' == quorifier ? lhs_size + 1 : lhs_size;
