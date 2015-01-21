@@ -233,7 +233,7 @@ bool vmcompiler::compile_char (wchar_t& ch)
             return false;
     }
     else if ((mstr[mpos] < L'\0' || L'\x1f' < mstr[mpos]) && '\x7f' != mstr[mpos]) {
-        ch = mstr[mpos];
+        ch = mstr[mpos++];
     }
     else
         return false;
