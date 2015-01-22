@@ -149,7 +149,7 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                 if (sp >= str.size ())
                     run->at (th--).ip = ip + 1;
                 else if (str[sp] == L'\n')
-                    runthread (rdy, 0, ip + 1, cap);
+                    run->at (th--).ip = ip + 1;
                 break;
             case vmcode::WORDB:
                 if (iswordboundary (str, sp))

@@ -158,10 +158,10 @@ void test9 (test::simple& ts)
     std::wstring str (L"a\nabc\nd\n");
     std::vector<int> cap;
     int rc = re.exec (str, cap, 0);
-    ts.ok (rc == 6, L"qr/.*^a(b)c$/ =~ \"a\\nabc\\n\"_\"d\\n\"");
+    ts.ok (rc == 5, L"qr/.*^a(b)c$/ =~ \"a\\nabc\"_\"\\nd\\n\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
-    ts.ok (m0 == L"a\nabc\n", L"$0 == \"a\\nabc\\n\"");
+    ts.ok (m0 == L"a\nabc", L"$0 == \"a\\nabc\"");
     ts.ok (m1 == L"b", L"$1 == \"b\"");
 }
 
