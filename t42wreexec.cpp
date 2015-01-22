@@ -99,18 +99,15 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
             if (vmcode::MATCH == prog[ip].opcode) {
                 match = sp;
                 capture.clear ();
-                for (auto x : *cap)
-                    capture.push_back (x);
+                capture.insert (capture.begin (), cap->begin (), cap->end ());
                 capture[1] = sp;
                 break;
             }
             if (vmcode::SAVE == prog[ip].opcode) {
-                auto newcap = std::make_shared<std::vector<int>> ();
-                for (auto x : *cap)
-                    newcap->push_back (x);
+                auto newcap = std::make_shared<std::vector<int>> (cap->begin (), cap->end ());
                 int num = prog[ip].addr0;
-                while (num >= newcap->size ())
-                    newcap->push_back (-1);
+                if (num + 1 > newcap->size ())
+                    newcap->resize (num + 1, -1);
                 (*newcap)[num] = sp;
                 run->at (th).capture = newcap;
                 run->at (th--).ip = ip + 1;
