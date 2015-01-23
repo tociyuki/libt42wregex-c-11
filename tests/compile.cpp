@@ -116,6 +116,24 @@ std::wstring list (std::wstring const& s)
             t += std::to_wstring (x.addr1);
             t += L"\n";
             break;
+        case t42::wpike::vmcode::RESET:
+            t += L"reset %r";
+            t += std::to_wstring (x.reg);
+            t += L"\n";
+            break;
+        case t42::wpike::vmcode::ISPLIT:
+            t += L"isplit ";
+            t += std::to_wstring (x.addr0);
+            t += L",";
+            t += std::to_wstring (x.addr1);
+            t += L",%r";
+            t += std::to_wstring (x.reg);
+            t += L",$";
+            t += std::to_wstring (x.n1);
+            t += L",$";
+            t += std::to_wstring (x.n2);
+            t += L"\n";
+            break;
         default:
             t += L"?\n";
         }
@@ -260,79 +278,71 @@ struct testspec {
      L"match\n"},
 
     {L"a{0,3}",
-     L"split 0,5\n"
+     L"reset %r0\n"
+     L"isplit 0,2,%r0,$0,$3\n"
      L"char 'a'\n"
-     L"split 0,3\n"
-     L"char 'a'\n"
-     L"split 0,1\n"
-     L"char 'a'\n"
+     L"jmp -3\n"
      L"match\n"},
 
     {L"a{0,3}?",
-     L"split 5,0\n"
+     L"reset %r0\n"
+     L"isplit 2,0,%r0,$0,$3\n"
      L"char 'a'\n"
-     L"split 3,0\n"
-     L"char 'a'\n"
-     L"split 1,0\n"
-     L"char 'a'\n"
+     L"jmp -3\n"
      L"match\n"},
 
     {L"a{1,3}",
+     L"reset %r0\n"
+     L"isplit 0,2,%r0,$1,$3\n"
      L"char 'a'\n"
-     L"split 0,3\n"
-     L"char 'a'\n"
-     L"split 0,1\n"
-     L"char 'a'\n"
+     L"jmp -3\n"
      L"match\n"},
 
     {L"a{1,3}?",
+     L"reset %r0\n"
+     L"isplit 2,0,%r0,$1,$3\n"
      L"char 'a'\n"
-     L"split 3,0\n"
-     L"char 'a'\n"
-     L"split 1,0\n"
-     L"char 'a'\n"
+     L"jmp -3\n"
      L"match\n"},
 
     {L"a{2}",
+     L"reset %r0\n"
+     L"isplit 0,2,%r0,$2,$2\n"
      L"char 'a'\n"
-     L"char 'a'\n"
+     L"jmp -3\n"
      L"match\n"},
 
     {L"a{2}?",
+     L"reset %r0\n"
+     L"isplit 2,0,%r0,$2,$2\n"
      L"char 'a'\n"
-     L"char 'a'\n"
+     L"jmp -3\n"
      L"match\n"},
 
     {L"a{2,4}",
+     L"reset %r0\n"
+     L"isplit 0,2,%r0,$2,$4\n"
      L"char 'a'\n"
-     L"char 'a'\n"
-     L"split 0,3\n"
-     L"char 'a'\n"
-     L"split 0,1\n"
-     L"char 'a'\n"
+     L"jmp -3\n"
      L"match\n"},
 
     {L"a{2,4}?",
+     L"reset %r0\n"
+     L"isplit 2,0,%r0,$2,$4\n"
      L"char 'a'\n"
-     L"char 'a'\n"
-     L"split 3,0\n"
-     L"char 'a'\n"
-     L"split 1,0\n"
-     L"char 'a'\n"
+     L"jmp -3\n"
      L"match\n"},
 
     {L"a{2,}",
-     L"char 'a'\n"
-     L"char 'a'\n"
-     L"split 0,2\n"
+     L"reset %r0\n"
+     L"isplit 0,2,%r0,$2,$-1\n"
      L"char 'a'\n"
      L"jmp -3\n"
      L"match\n"},
 
     {L"a{2,}?",
-     L"char 'a'\n"
-     L"char 'a'\n"
-     L"split 2,0\n"
+     L"reset %r0\n"
+     L"isplit 2,0,%r0,$2,$-1\n"
      L"char 'a'\n"
      L"jmp -3\n"
      L"match\n"},

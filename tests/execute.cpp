@@ -263,7 +263,7 @@ int main (int argc, char* argv[])
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (51);
+    test::simple ts (50);
     test1 (ts);
     test2 (ts);
     test3 (ts);

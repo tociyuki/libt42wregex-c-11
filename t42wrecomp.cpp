@@ -15,6 +15,7 @@ private:
     std::wstring mstr;
     int mpos;
     int mgroup;
+    int mreg;
     bool compile_exp (std::vector<vmcode>& prog);
     bool compile_cat (std::vector<vmcode>& prog);
     bool compile_term (std::vector<vmcode>& prog);
@@ -33,6 +34,7 @@ bool vmcompiler::compile (std::wstring str, std::vector<vmcode>& prog)
     mstr.push_back ('\0');
     mpos = 0;
     mgroup = 0;
+    mreg = 0;
     if (! compile_exp (prog))
         return false;
     prog.push_back (vmcode (vmcode::MATCH));
@@ -130,36 +132,16 @@ bool vmcompiler::compile_repitition (std::vector<vmcode>& lhs)
     bool const greedy = mstr[mpos] != L'\x3f';
     if (! greedy)
         ++mpos;
+    int lhs_size = lhs.size ();
+    int reg = mreg++;
+    if (greedy)
+        lhs.insert (lhs.begin (), vmcode (vmcode::ISPLIT, 0, lhs_size + 1, reg, n1, n2));
+    else
+        lhs.insert (lhs.begin (), vmcode (vmcode::ISPLIT, lhs_size + 1, 0, reg, n1, n2));
+    lhs.insert (lhs.begin (), vmcode (vmcode::RESET, 0, 0, reg, 0, 0));
+    lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
     std::vector<vmcode> prog;
     std::vector<int> patch;
-    int lhs_size = lhs.size ();
-    if (lhs_size * (n2 == -1 ? n1 : n2) > PROG_SIZE_LIMIT)
-        return false;
-    for (int i = 0; i < n1; ++i)
-        prog.insert (prog.end (), lhs.begin (), lhs.end ());
-    if (n2 == -1) {
-        if (greedy)
-            prog.push_back (vmcode (vmcode::SPLIT, 0, lhs_size + 1));
-        else
-            prog.push_back (vmcode (vmcode::SPLIT, lhs_size + 1, 0));
-        prog.insert (prog.end (), lhs.begin (), lhs.end ());
-        prog.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
-    }
-    else if (n1 < n2) {
-        for (int i = n1; i < n2; ++i) {
-            patch.push_back (prog.size ());
-            prog.push_back (vmcode (vmcode::SPLIT, 0, 0));
-            prog.insert (prog.end (), lhs.begin (), lhs.end ());
-        }
-        std::size_t const dol = prog.size ();
-        if (greedy)
-            for (auto i : patch)
-                prog[i].addr1 = dol - i - 1;
-        else
-            for (auto i : patch)
-                prog[i].addr0 = dol - i - 1;
-    }
-    lhs = std::move (prog);
     return true;
 }
 

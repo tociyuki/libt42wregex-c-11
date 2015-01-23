@@ -23,21 +23,26 @@ struct vmspan {
 struct vmcode {
     enum operation {
         MATCH, SAVE, CHAR, ANY, CCLASS, NCCLASS,
-        BOL, EOL, BOS, EOS, WORDB, NWORDB, JMP, SPLIT
+        BOL, EOL, BOS, EOS, WORDB, NWORDB, JMP, SPLIT,
+        RESET, ISPLIT
     };
     operation opcode;
     int addr0;
     int addr1;
     wchar_t ch;
     std::shared_ptr<std::vector<vmspan>> span;
+    int reg;
+    int n1, n2;
+    vmcode (operation a, int b, int c, int d, int e, int f)
+        : opcode (a), addr0 (b), addr1 (c), ch (), span (), reg (d), n1 (e), n2 (f) { }
     vmcode (operation a, int b, int c)
-        : opcode (a), addr0 (b), addr1 (c), ch (), span () { }
+        : opcode (a), addr0 (b), addr1 (c), ch (), span (), reg (), n1 (), n2 () { }
     vmcode (operation a, wchar_t b)
-        : opcode (a), addr0 (), addr1 (), ch (b), span () { }
+        : opcode (a), addr0 (), addr1 (), ch (b), span (), reg (), n1 (), n2 () { }
     vmcode (operation a, std::shared_ptr<std::vector<vmspan>>& b)
-        : opcode (a), addr0 (), addr1 (), ch (), span (b) { }
+        : opcode (a), addr0 (), addr1 (), ch (), span (b), reg (), n1 (), n2 () { }
     vmcode (operation a)
-        : opcode (a), addr0 (), addr1 (), ch (), span () { }
+        : opcode (a), addr0 (), addr1 (), ch (), span (), reg (), n1 (), n2 () { }
 };
 
 }//namespace wpike
