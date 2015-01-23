@@ -6,13 +6,6 @@
 #include "t42wregex.hpp"
 #include "wtaptests.hpp"
 
-/*
- * c++ -std=c++11 -I.. -c ../t42wrecomp.cpp
- * c++ -std=c++11 -I.. -c ../t42wreexec.cpp
- * c++ -std=c++11 -o compile -I. -I.. compile.cpp t42wrecomp.o  t42wreexec.o
- * ./compile
- */
-
 std::wstring esc (std::wstring const& s)
 {
     std::wstring t;
@@ -133,13 +126,6 @@ struct testspec {
     wchar_t const* input;
     wchar_t const* expected;
 } spec[]{
-    {L"a|b",
-     L"split 0,2\n"
-     L"char 'a'\n"
-     L"jmp 1\n"
-     L"char 'b'\n"
-     L"match\n"},
-
     {L"a|b|c",
      L"split 0,2\n"
      L"char 'a'\n"
@@ -248,6 +234,91 @@ struct testspec {
      L"char 'a'\n"
      L"char 'b'\n"
      L"split 0,-3\n"
+     L"match\n"},
+
+    {L"a{0,3}",
+     L"split 0,5\n"
+     L"char 'a'\n"
+     L"split 0,3\n"
+     L"char 'a'\n"
+     L"split 0,1\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"a{0,3}?",
+     L"split 5,0\n"
+     L"char 'a'\n"
+     L"split 3,0\n"
+     L"char 'a'\n"
+     L"split 1,0\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"a{1,3}",
+     L"char 'a'\n"
+     L"split 0,3\n"
+     L"char 'a'\n"
+     L"split 0,1\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"a{1,3}?",
+     L"char 'a'\n"
+     L"split 3,0\n"
+     L"char 'a'\n"
+     L"split 1,0\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"a{2}",
+     L"char 'a'\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"a{2}?",
+     L"char 'a'\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"a{2,4}",
+     L"char 'a'\n"
+     L"char 'a'\n"
+     L"split 0,3\n"
+     L"char 'a'\n"
+     L"split 0,1\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"a{2,4}?",
+     L"char 'a'\n"
+     L"char 'a'\n"
+     L"split 3,0\n"
+     L"char 'a'\n"
+     L"split 1,0\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"a{2,}",
+     L"char 'a'\n"
+     L"char 'a'\n"
+     L"split 0,2\n"
+     L"char 'a'\n"
+     L"jmp -3\n"
+     L"match\n"},
+
+    {L"a{2,}?",
+     L"char 'a'\n"
+     L"char 'a'\n"
+     L"split 2,0\n"
+     L"char 'a'\n"
+     L"jmp -3\n"
+     L"match\n"},
+
+    {L"q{a}",
+     L"char 'q'\n"
+     L"char '{'\n"
+     L"char 'a'\n"
+     L"char '}'\n"
      L"match\n"},
 
     {L"(a(b)c)d(e)",

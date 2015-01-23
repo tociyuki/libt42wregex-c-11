@@ -6,13 +6,6 @@
 #include "t42wregex.hpp"
 #include "wtaptests.hpp"
 
-/*
- * c++ -std=c++11 -I.. -c ../t42wrecomp.cpp
- * c++ -std=c++11 -I.. -c ../t42wreexec.cpp
- * c++ -std=c++11 -o execute -I. -I.. execute.cpp t42wrecomp.o  t42wreexec.o
- * ./execute
- */
-
 std::wstring esc (std::wstring const& s)
 {
     std::wstring t;
@@ -204,12 +197,53 @@ void test12 (test::simple& ts)
     ts.ok (m1 == L"3.1415", L"$1 == \"3.1415\"");
 }
 
+void test13 (test::simple& ts)
+{
+    t42::wregex re (L"a(.{2,8})c");
+    std::wstring str (L"abcdcecf");
+    std::vector<int> cap;
+    int rc = re.exec (str, cap, 0);
+    ts.ok (rc == 7, L"qr/a(.{2,8}?)c/ =~ \"abcdcec\"_\"f\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    ts.ok (m0 == L"abcdcec", L"$0 == \"abcdcec\"");
+    ts.ok (m1 == L"bcdce", L"$1 == \"bcdce\"");
+}
+
+void test14 (test::simple& ts)
+{
+    t42::wregex re (L"a(.{2,8}?)c");
+    std::wstring str (L"abcdcecf");
+    std::vector<int> cap;
+    int rc = re.exec (str, cap, 0);
+    ts.ok (rc == 5, L"qr/a(.{2,8}?)c/ =~ \"abcdc\"_\"ecf\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    ts.ok (m0 == L"abcdc", L"$0 == \"abcdc\"");
+    ts.ok (m1 == L"bcd", L"$1 == \"bcd\"");
+}
+
+void test15 (test::simple& ts)
+{
+    t42::wregex re (L"(.*?)\\b((?:[A-Z][a-z]{1,16}){2,4})\\b");
+    std::wstring str (L"wiki has the FrontPage.");
+    std::vector<int> cap;
+    int rc = re.exec (str, cap, 0);
+    ts.ok (rc == 22, L"qr/(.*?)\\b((?:[A-Z][a-z]{1,16}){2,4})\\b/ =~ \"wiki has the FrontPage\"_\".\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    std::wstring m2(str.begin () + cap[4], str.begin () + cap[5]);
+    ts.ok (m0 == L"wiki has the FrontPage", L"$0 == \"wiki has the FrontPage\"");
+    ts.ok (m1 == L"wiki has the ", L"$1 == \"wiki has the \"");
+    ts.ok (m2 == L"FrontPage", L"$2 == \"FrontPage\"");
+}
+
 int main (int argc, char* argv[])
 {
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (35);
+    test::simple ts (45);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -222,6 +256,9 @@ int main (int argc, char* argv[])
     test10 (ts);
     test11 (ts);
     test12 (ts);
+    test13 (ts);
+    test14 (ts);
+    test15 (ts);
     return ts.done_testing ();
 }
 

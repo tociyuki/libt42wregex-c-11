@@ -60,7 +60,15 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / factor '??'        # zero or one non-greedy
            / factor '*?'        # zero or more non-greedy
            / factor '+?'        # one or more non-greedy
-           / factor             ## term{n,m} is not implemented
+           / factor '{' n '}'   # just n times
+           / factor '{' n ',' m '}'  # n to m times greedy
+           / factor '{' n ',}'  # more than or n times greedy
+           / factor '{' n '}?'  # just n times
+           / factor '{' n ',' m '}?'  # n to m times non-greedy
+           / factor '{' n ',}?' # more than or n times non-greedy
+           / factor
+                ## CAUTION: (?:(?:a{10}){10}){10} generates 1000 instructions!
+                ## the compiler fails over vmcompiler::PROG_SIZE_LIMIT=65536 instructions.
 
     factor <- '(' regex ')'     # capture group
            / '(?:' regex ')'    # uncaptured subexpression

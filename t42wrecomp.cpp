@@ -9,6 +9,7 @@ namespace wpike {
 
 class vmcompiler {
 public:
+    enum {PROG_SIZE_LIMIT = 65536};
     bool compile (std::wstring str, std::vector<vmcode>& prog);
 private:
     std::wstring mstr;
@@ -17,6 +18,7 @@ private:
     bool compile_exp (std::vector<vmcode>& prog);
     bool compile_cat (std::vector<vmcode>& prog);
     bool compile_term (std::vector<vmcode>& prog);
+    bool compile_repitition (std::vector<vmcode>& lhs);
     bool compile_factor (std::vector<vmcode>& prog);
     bool compile_cclass (std::vector<vmcode>& prog);
     bool compile_char (wchar_t& ch);
@@ -99,7 +101,65 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
                 lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
         }
     }
+    else if (L'{' == mstr[mpos] && ! compile_repitition (lhs))
+        return false;
     prog.insert (prog.end (), lhs.begin (), lhs.end ());
+    return true;
+}
+
+bool vmcompiler::compile_repitition (std::vector<vmcode>& lhs)
+{
+    int n1, n2;
+    int const mpos0 = mpos++;
+    if (! digits (n1, 10, 8)) {
+        mpos = mpos0;
+        return true;
+    }
+    n2 = n1;
+    if (L',' == mstr[mpos]) {
+        ++mpos;
+        n2 = -1;
+        digits (n2, 10, 8);
+    }
+    if (L'}' != mstr[mpos++]) {
+        mpos = mpos0;
+        return true;
+    }
+    if (n2 != -1 && (n1 > n2 || n2 <= 0))
+        return false;
+    bool const greedy = mstr[mpos] != L'\x3f';
+    if (! greedy)
+        ++mpos;
+    std::vector<vmcode> prog;
+    std::vector<int> patch;
+    int lhs_size = lhs.size ();
+    if (lhs_size * (n2 == -1 ? n1 : n2) > PROG_SIZE_LIMIT)
+        return false;
+    for (int i = 0; i < n1; ++i)
+        prog.insert (prog.end (), lhs.begin (), lhs.end ());
+    if (n2 == -1) {
+        if (greedy)
+            prog.push_back (vmcode (vmcode::SPLIT, 0, lhs_size + 1));
+        else
+            prog.push_back (vmcode (vmcode::SPLIT, lhs_size + 1, 0));
+        prog.insert (prog.end (), lhs.begin (), lhs.end ());
+        prog.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
+    }
+    else if (n1 < n2) {
+        for (int i = n1; i < n2; ++i) {
+            patch.push_back (prog.size ());
+            prog.push_back (vmcode (vmcode::SPLIT, 0, 0));
+            prog.insert (prog.end (), lhs.begin (), lhs.end ());
+        }
+        std::size_t const dol = prog.size ();
+        if (greedy)
+            for (auto i : patch)
+                prog[i].addr1 = dol - i - 1;
+        else
+            for (auto i : patch)
+                prog[i].addr0 = dol - i - 1;
+    }
+    lhs = std::move (prog);
     return true;
 }
 
