@@ -41,6 +41,9 @@ private:
         std::vector<vmthread>* const que, int const from, int const ip,
         std::shared_ptr<std::vector<int>>& capture,
         std::shared_ptr<std::vector<int>>& counter);
+    template<typename T>
+    std::shared_ptr<std::vector<T>> ptrvec_copy_set(
+        std::shared_ptr<std::vector<T>> v, int i, T x, T x0);
 };
 
 bool vmengine::isword (wchar_t c)
@@ -85,6 +88,17 @@ void vmengine::runthread (
     que->push_back (th);
 }
 
+template<typename T>
+std::shared_ptr<std::vector<T>> vmengine::ptrvec_copy_set(
+    std::shared_ptr<std::vector<T>> v, int i, T x, T x0)
+{
+    auto u = std::make_shared<std::vector<T>> (v->begin (), v->end ());
+    if (i + 1 > u->size ())
+        u->resize (i + 1, x0);
+    (*u)[i] = x;
+    return u;
+}
+
 int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
     std::vector<int>& capture, std::wstring::size_type const pos)
 {
@@ -111,22 +125,12 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                 break;
             }
             if (vmcode::SAVE == prog[ip].opcode) {
-                auto newcap = std::make_shared<std::vector<int>> (cap->begin (), cap->end ());
-                int num = prog[ip].addr0;
-                if (num + 1 > newcap->size ())
-                    newcap->resize (num + 1, -1);
-                (*newcap)[num] = sp;
-                run->at (th).capture = newcap;
+                run->at (th).capture = ptrvec_copy_set (cap, prog[ip].addr0, sp, -1);
                 run->at (th--).ip = ip + 1;
                 continue;
             }
             if (vmcode::RESET == prog[ip].opcode) {
-                auto newcnt = std::make_shared<std::vector<int>> (cnt->begin (), cnt->end ());
-                int num = prog[ip].reg;
-                if (num + 1 > newcnt->size ())
-                    newcnt->resize (num + 1, -1);
-                (*newcnt)[num] = 0;
-                run->at (th).counter = newcnt;
+                run->at (th).counter = ptrvec_copy_set (cnt, prog[ip].reg, 0, 0);
                 run->at (th--).ip = ip + 1;
                 continue;
             }
@@ -134,10 +138,8 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                 int reg = prog[ip].reg;
                 int n1 = prog[ip].n1;
                 int n2 = prog[ip].n2;
-                auto newcnt = std::make_shared<std::vector<int>> (cnt->begin (), cnt->end ());
-                cnt = newcnt;
-                int n = ++((*newcnt)[reg]);
-                run->at (th).counter = newcnt;
+                int n = (*cnt)[reg] + 1;
+                run->at (th).counter = cnt = ptrvec_copy_set (cnt, reg, n, 0);
                 if (n1 < n && (n2 == -1 || n <= n2)) {
                     runthread (run, th + 1, prog[ip].addr1 + ip + 1, cap, cnt);
                     run->at (th--).ip = prog[ip].addr0 + ip + 1;
