@@ -201,6 +201,8 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
         prog.push_back (vmcode (op2[idx]));
         mpos += 2;
     }
+    else if (L'\x3f' == mstr[mpos] || L'*' == mstr[mpos] || L'+' == mstr[mpos])
+        return false;
     else if (compile_char (ch))
         prog.push_back (vmcode (vmcode::CHAR, ch));
     else
