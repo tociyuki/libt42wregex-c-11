@@ -9,7 +9,6 @@ namespace wpike {
 
 class vmcompiler {
 public:
-    enum {PROG_SIZE_LIMIT = 65536};
     bool compile (std::wstring str, std::vector<vmcode>& prog);
 private:
     std::wstring mstr;
@@ -19,7 +18,7 @@ private:
     bool compile_exp (std::vector<vmcode>& prog);
     bool compile_cat (std::vector<vmcode>& prog);
     bool compile_term (std::vector<vmcode>& prog);
-    bool compile_repitition (std::vector<vmcode>& lhs);
+    bool compile_interval (std::vector<vmcode>& lhs);
     bool compile_factor (std::vector<vmcode>& prog);
     bool compile_cclass (std::vector<vmcode>& prog);
     bool compile_char (wchar_t& ch);
@@ -103,13 +102,13 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
                 lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
         }
     }
-    else if (L'{' == mstr[mpos] && ! compile_repitition (lhs))
+    else if (L'{' == mstr[mpos] && ! compile_interval (lhs))
         return false;
     prog.insert (prog.end (), lhs.begin (), lhs.end ());
     return true;
 }
 
-bool vmcompiler::compile_repitition (std::vector<vmcode>& lhs)
+bool vmcompiler::compile_interval (std::vector<vmcode>& lhs)
 {
     int n1, n2;
     int const mpos0 = mpos++;
