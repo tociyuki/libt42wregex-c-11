@@ -140,8 +140,6 @@ bool vmcompiler::compile_repitition (std::vector<vmcode>& lhs)
         lhs.insert (lhs.begin (), vmcode (vmcode::ISPLIT, lhs_size + 1, 0, reg, n1, n2));
     lhs.insert (lhs.begin (), vmcode (vmcode::RESET, 0, 0, reg, 0, 0));
     lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
-    std::vector<vmcode> prog;
-    std::vector<int> patch;
     return true;
 }
 
