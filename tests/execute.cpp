@@ -203,11 +203,19 @@ void test13 (test::simple& ts)
     std::wstring str (L"abcdcecf");
     std::vector<int> cap;
     int rc = re.exec (str, cap, 0);
-    ts.ok (rc == 7, L"qr/a(.{2,8}?)c/ =~ \"abcdcec\"_\"f\"");
+    ts.ok (rc == 7, L"qr/a(.{2,8})c/ =~ \"abcdcec\"_\"f\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
     ts.ok (m0 == L"abcdcec", L"$0 == \"abcdcec\"");
     ts.ok (m1 == L"bcdce", L"$1 == \"bcdce\"");
+
+    std::wstring str2 (L"a1cdxexf");
+    int rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 < 0, L"qr/a(.{2,8})c/ !~ \"a1cdxexf\"");
+
+    std::wstring str3 (L"a123456789c");
+    int rc3 = re.exec (str3, cap, 0);
+    ts.ok (rc3 < 0, L"qr/a(.{2,8})c/ !~ \"a123456789c\"");
 }
 
 void test14 (test::simple& ts)
@@ -221,6 +229,14 @@ void test14 (test::simple& ts)
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
     ts.ok (m0 == L"abcdc", L"$0 == \"abcdc\"");
     ts.ok (m1 == L"bcd", L"$1 == \"bcd\"");
+
+    std::wstring str2 (L"a1cdxexf");
+    int rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 < 0, L"qr/a(.{2,8}?)c/ !~ \"a1cdxexf\"");
+
+    std::wstring str3 (L"a123456789c");
+    int rc3 = re.exec (str3, cap, 0);
+    ts.ok (rc3 < 0, L"qr/a(.{2,8}?)c/ !~ \"a123456789c\"");
 }
 
 void test15 (test::simple& ts)
@@ -236,6 +252,10 @@ void test15 (test::simple& ts)
     ts.ok (m0 == L"wiki has the FrontPage", L"$0 == \"wiki has the FrontPage\"");
     ts.ok (m1 == L"wiki has the ", L"$1 == \"wiki has the \"");
     ts.ok (m2 == L"FrontPage", L"$2 == \"FrontPage\"");
+
+    std::wstring str2 (L"wiki has the Frontpage.");
+    int rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 < 0, L"qr/(.*?)\\b((?:[A-Z][a-z]{1,16}){2,4})\\b/ !~ \"wiki has the Frontpage.\"");
 }
 
 int main (int argc, char* argv[])
@@ -243,7 +263,7 @@ int main (int argc, char* argv[])
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (45);
+    test::simple ts (51);
     test1 (ts);
     test2 (ts);
     test3 (ts);
