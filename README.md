@@ -52,7 +52,7 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / cat
 
     cat   <- term cat           # sequence of terms
-           / term
+           /
 
     term  <- factor '?'         # zero or one greedy
            / factor '*'         # zero or more greedy
