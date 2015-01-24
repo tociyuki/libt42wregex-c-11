@@ -53,7 +53,7 @@ bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
             return false;
         if (lhs.size () == 0 && rhs.size () == 0)
             continue;
-        prog.insert (prog.end (), vmcode (vmcode::SPLIT, 0, lhs.size () + 1));
+        prog.push_back (vmcode (vmcode::SPLIT, 0, lhs.size () + 1));
         prog.insert (prog.end (), lhs.begin (), lhs.end ());
         patch.push_back (prog.size ());
         prog.push_back (vmcode (vmcode::JMP, 0, 0));
@@ -159,12 +159,10 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
         int const n = mgroup + 1;
         if (skip == 1)
             prog.push_back (vmcode (vmcode::SAVE, (++mgroup) * 2, 0));
-        if (! compile_exp (prog))
+        if (! compile_exp (prog) || L')' != mstr[mpos++])
             return false;
         if (skip == 1)
             prog.push_back (vmcode (vmcode::SAVE, n * 2 + 1, 0));
-        if (L')' != mstr[mpos++])
-            return false;
     }
     else if (L'[' == mstr[mpos]) {
         ++mpos;
