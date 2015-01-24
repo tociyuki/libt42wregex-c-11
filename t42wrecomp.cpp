@@ -68,10 +68,10 @@ bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
 
 bool vmcompiler::compile_cat (std::vector<vmcode>& prog)
 {
-    do {
+    while (L'|' != mstr[mpos] && L')' != mstr[mpos] && L'\0' != mstr[mpos]) {
         if (! compile_term (prog))
             return false;
-    } while (L'|' != mstr[mpos] && L')' != mstr[mpos] && L'\0' != mstr[mpos]);
+    }
     return true;
 }
 

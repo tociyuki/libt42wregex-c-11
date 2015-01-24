@@ -300,12 +300,54 @@ void test17 (test::simple& ts)
     ts.ok (rc3 == 11, L"qr/a(.{2,}?)c/ !~ \"a123456789c\"_");
 }
 
+void test18 (test::simple& ts)
+{
+    t42::wregex re (L"a(.|)c");
+    std::wstring str (L"abcdcecf");
+    std::vector<int> cap;
+    int rc = re.exec (str, cap, 0);
+    ts.ok (rc == 3, L"qr/a(.|)c/ =~ \"abc\"_\"dcecf\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    ts.ok (m0 == L"abc", L"$0 == \"abc\"");
+    ts.ok (m1 == L"b", L"$1 == \"b\"");
+
+    std::wstring str2 (L"acdcecf");
+    int rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 == 2, L"qr/a(.|)c/ =~ \"ac\"_\"dcecf\"");
+    m0.assign (str2.begin () + cap[0], str2.begin () + cap[1]);
+    m1.assign (str2.begin () + cap[2], str2.begin () + cap[3]);
+    ts.ok (m0 == L"ac", L"$0 == \"ac\"");
+    ts.ok (m1 == L"", L"$1 == \"\"");
+}
+
+void test19 (test::simple& ts)
+{
+    t42::wregex re (L"a(|.)c");
+    std::wstring str (L"abcdcecf");
+    std::vector<int> cap;
+    int rc = re.exec (str, cap, 0);
+    ts.ok (rc == 3, L"qr/a(|.)c/ =~ \"abc\"_\"dcecf\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    ts.ok (m0 == L"abc", L"$0 == \"abc\"");
+    ts.ok (m1 == L"b", L"$1 == \"b\"");
+
+    std::wstring str2 (L"acdcecf");
+    int rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 == 2, L"qr/a(|.)c/ =~ \"ac\"_\"dcecf\"");
+    m0.assign (str2.begin () + cap[0], str2.begin () + cap[1]);
+    m1.assign (str2.begin () + cap[2], str2.begin () + cap[3]);
+    ts.ok (m0 == L"ac", L"$0 == \"ac\"");
+    ts.ok (m1 == L"", L"$1 == \"\"");
+}
+
 int main (int argc, char* argv[])
 {
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (60);
+    test::simple ts (72);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -323,6 +365,8 @@ int main (int argc, char* argv[])
     test15 (ts);
     test16 (ts);
     test17 (ts);
+    test18 (ts);
+    test19 (ts);
     return ts.done_testing ();
 }
 

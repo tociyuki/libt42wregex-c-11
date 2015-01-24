@@ -207,6 +207,18 @@ struct testspec {
      L"save 3\n"
      L"match\n"},
 
+    {L"a|",
+     L"split 0,2\n"
+     L"char 'a'\n"
+     L"jmp 0\n"
+     L"match\n"},
+
+    {L"|b",
+     L"split 0,1\n"
+     L"jmp 1\n"
+     L"char 'b'\n"
+     L"match\n"},
+
     {L"a?",
      L"split 0,1\n"
      L"char 'a'\n"
