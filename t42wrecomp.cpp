@@ -111,7 +111,7 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
 bool vmcompiler::compile_interval (std::vector<vmcode>& lhs)
 {
     int n1, n2;
-    int const mpos0 = mpos++;
+    int const mpos0 = mpos++;   // skip L'{'
     if (! digits (n1, 10, 8)) {
         mpos = mpos0;
         return true;
@@ -144,15 +144,14 @@ bool vmcompiler::compile_interval (std::vector<vmcode>& lhs)
 
 bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
 {
-    wchar_t ch;
-    std::wstring::size_type idx;
     static const std::wstring pat1 (L".^$");
     static const std::vector<vmcode::operation> op1{
         vmcode::ANY, vmcode::BOL, vmcode::EOL};
     static const std::wstring pat2 (L"ABbz");
     static const std::vector<vmcode::operation> op2{
         vmcode::BOS, vmcode::NWORDB, vmcode::WORDB, vmcode::EOS};
-
+    wchar_t ch;
+    std::wstring::size_type idx;
     if (L'(' == mstr[mpos]) {
         int const skip = mstr.compare (mpos, 3, L"(\x3f:") == 0 ? 3 : 1;
         mpos += skip;
@@ -189,13 +188,13 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
 
 bool vmcompiler::compile_cclass (std::vector<vmcode>& prog)
 {
-    wchar_t ch, last;
     vmcode::operation op = L'^' == mstr[mpos] ? vmcode::NCCLASS : vmcode::CCLASS;
     if (L'^' == mstr[mpos])
         ++mpos;
     auto spanlist = std::make_shared<std::vector<vmspan>> ();
     std::wstring spanstr;
-    if (! compile_char (ch))
+    wchar_t ch, last;
+    if (! compile_char (ch))    // L"[]a]" L"[-a]" trick
         return false;
     spanstr.push_back (ch);
     while (L']' != mstr[mpos])
@@ -204,19 +203,19 @@ bool vmcompiler::compile_cclass (std::vector<vmcode>& prog)
                 return false;
             spanstr.push_back (ch);
         }
-        else if (L']' == mstr[mpos + 1])
+        else if (L']' == mstr[mpos + 1])    // L"[a-]" trick
             spanstr.push_back (mstr[mpos++]);
-        else {
-            ++mpos;
+        else {  // in here, L"[*--]" != L"[*+,-]", it is error.
+            ++mpos;     // skip L'-'
+            if (L'-' == mstr[mpos] || ! compile_char (last))
+                return false;
             spanstr.pop_back ();
             if (spanstr.size () > 0)
                 spanlist->push_back (vmspan (spanstr));
             spanstr.clear ();
-            if (! compile_char (last))
-                return false;
             spanlist->push_back (vmspan (ch, last));
         }
-    ++mpos;
+    ++mpos;     // skip L']'
     if (spanstr.size () > 0)
         spanlist->push_back (vmspan (spanstr));
     prog.push_back (vmcode (op, spanlist));
@@ -228,7 +227,6 @@ bool vmcompiler::compile_char (wchar_t& ch)
     std::wstring::size_type idx;
     static const std::wstring pat1 (L"aeftnr");
     static const std::wstring val1 (L"\x07\x1b\f\t\n\r");
-
     if ((L'\0' <= mstr[mpos] && mstr[mpos] <= '\x1f') || '\x7f' == mstr[mpos])
         return false;
     ch = mstr[mpos++];
