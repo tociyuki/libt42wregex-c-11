@@ -267,10 +267,17 @@ bool vmcompiler::digits (T& value, int const base, int const len)
 
 int vmcompiler::c7toi (wchar_t ch)
 {
-    return (ch >= L'0' && ch <= L'9') ? ch - L'0'
-          : (ch >= L'a' && ch <= L'z') ? ch - L'a' + 10
-          : (ch >= L'A' && ch <= L'Z') ? ch - L'A' + 10
-          : 36;
+    static const std::wstring wdigit (L"0123456789");
+    static const std::wstring wupper (L"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    static const std::wstring wlower (L"abcdefghijklmnopqrstuvwxyz");
+    std::wstring::size_type i;
+    if ((i = wdigit.find (ch)) != std::wstring::npos)
+        return i;
+    if ((i = wupper.find (ch)) != std::wstring::npos)
+        return i + 10;
+    if ((i = wlower.find (ch)) != std::wstring::npos)
+        return i + 10;
+    return 36;
 }
 
 }//namespace wpike
