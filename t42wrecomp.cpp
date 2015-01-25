@@ -12,7 +12,7 @@ public:
     bool compile (std::wstring str, std::vector<vmcode>& prog);
 private:
     std::wstring mstr;
-    int mpos;
+    std::wstring::iterator mpos;
     int mgroup;
     int mreg;
     bool compile_exp (std::vector<vmcode>& prog);
@@ -31,7 +31,7 @@ bool vmcompiler::compile (std::wstring str, std::vector<vmcode>& prog)
 {
     mstr.assign (std::move (str));
     mstr.push_back ('\0');
-    mpos = 0;
+    mpos = mstr.begin ();
     mgroup = 0;
     mreg = 0;
     if (! compile_exp (prog))
@@ -46,7 +46,7 @@ bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
     std::vector<vmcode> lhs;
     if (! compile_cat (lhs))
         return false;
-    while (L'|' == mstr[mpos]) {
+    while (L'|' == *mpos) {
         ++mpos;
         std::vector<vmcode> rhs;
         if (! compile_cat (rhs))
@@ -68,7 +68,7 @@ bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
 
 bool vmcompiler::compile_cat (std::vector<vmcode>& prog)
 {
-    while (L'|' != mstr[mpos] && L')' != mstr[mpos] && L'\0' != mstr[mpos]) {
+    while (L'|' != *mpos && L')' != *mpos && L'\0' != *mpos) {
         if (! compile_term (prog))
             return false;
     }
@@ -81,9 +81,9 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
     if (! compile_factor (lhs))
         return false;
     int const lhs_size = lhs.size (); // must be int not std::size_t
-    if (L'\x3f' == mstr[mpos] || L'*' == mstr[mpos] || L'+' == mstr[mpos]) {
-        wchar_t const quorifier = mstr[mpos++];
-        bool const greedy = mstr[mpos] != L'\x3f';
+    if (L'\x3f' == *mpos || L'*' == *mpos || L'+' == *mpos) {
+        wchar_t const quorifier = *mpos++;
+        bool const greedy = *mpos != L'\x3f';
         if (! greedy)
             ++mpos;
         if (L'+' == quorifier) {
@@ -102,7 +102,7 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
                 lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
         }
     }
-    else if (L'{' == mstr[mpos] && ! compile_interval (lhs))
+    else if (L'{' == *mpos && ! compile_interval (lhs))
         return false;
     prog.insert (prog.end (), lhs.begin (), lhs.end ());
     return true;
@@ -111,24 +111,24 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
 bool vmcompiler::compile_interval (std::vector<vmcode>& lhs)
 {
     int n1, n2;
-    int const mpos0 = mpos++;   // skip L'{'
+    auto const mpos0 = mpos++;   // skip L'{'
     if (! digits (n1, 10, 8)) {
         mpos = mpos0;
         return true;
     }
     n2 = n1;
-    if (L',' == mstr[mpos]) {
+    if (L',' == *mpos) {
         ++mpos;
         n2 = -1;
         digits (n2, 10, 8);
     }
-    if (L'}' != mstr[mpos++]) {
+    if (L'}' != *mpos++) {
         mpos = mpos0;
         return true;
     }
     if (n2 != -1 && (n1 > n2 || n2 <= 0))
         return false;
-    bool const greedy = mstr[mpos] != L'\x3f';
+    bool const greedy = *mpos != L'\x3f';
     if (! greedy)
         ++mpos;
     int lhs_size = lhs.size ();
@@ -152,32 +152,32 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
         vmcode::BOS, vmcode::NWORDB, vmcode::WORDB, vmcode::EOS};
     wchar_t ch;
     std::wstring::size_type idx;
-    if (L'(' == mstr[mpos]) {
-        int const skip = mstr.compare (mpos, 3, L"(\x3f:") == 0 ? 3 : 1;
+    if (L'(' == *mpos) {
+        int const skip = mstr.compare (mpos - mstr.begin (), 3, L"(\x3f:") == 0 ? 3 : 1;
         mpos += skip;
         int const n = mgroup + 1;
         if (skip == 1)
             prog.push_back (vmcode (vmcode::SAVE, (++mgroup) * 2, 0));
-        if (! compile_exp (prog) || L')' != mstr[mpos++])
+        if (! compile_exp (prog) || L')' != *mpos++)
             return false;
         if (skip == 1)
             prog.push_back (vmcode (vmcode::SAVE, n * 2 + 1, 0));
     }
-    else if (L'[' == mstr[mpos]) {
+    else if (L'[' == *mpos) {
         ++mpos;
         if (! compile_cclass (prog))
             return false;
     }
-    else if ((idx = pat1.find (mstr[mpos])) != std::wstring::npos) {
+    else if ((idx = pat1.find (*mpos)) != std::wstring::npos) {
         prog.push_back (vmcode (op1[idx]));
         ++mpos;
     }
-    else if (L'\\' == mstr[mpos]
-            && (idx = pat2.find (mstr[mpos + 1])) != std::wstring::npos) {
+    else if (L'\\' == *mpos
+            && (idx = pat2.find (mpos[1])) != std::wstring::npos) {
         prog.push_back (vmcode (op2[idx]));
         mpos += 2;
     }
-    else if (L'\x3f' == mstr[mpos] || L'*' == mstr[mpos] || L'+' == mstr[mpos])
+    else if (L'\x3f' == *mpos || L'*' == *mpos || L'+' == *mpos)
         return false;
     else if (compile_char (ch))
         prog.push_back (vmcode (vmcode::CHAR, ch));
@@ -188,8 +188,8 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
 
 bool vmcompiler::compile_cclass (std::vector<vmcode>& prog)
 {
-    vmcode::operation op = L'^' == mstr[mpos] ? vmcode::NCCLASS : vmcode::CCLASS;
-    if (L'^' == mstr[mpos])
+    vmcode::operation op = L'^' == *mpos ? vmcode::NCCLASS : vmcode::CCLASS;
+    if (L'^' == *mpos)
         ++mpos;
     auto spanlist = std::make_shared<std::vector<vmspan>> ();
     std::wstring spanstr;
@@ -197,17 +197,17 @@ bool vmcompiler::compile_cclass (std::vector<vmcode>& prog)
     if (! compile_char (ch))    // L"[]a]" L"[-a]" trick
         return false;
     spanstr.push_back (ch);
-    while (L']' != mstr[mpos])
-        if (L'-' != mstr[mpos]) {
+    while (L']' != *mpos)
+        if (L'-' != *mpos) {
             if (! compile_char (ch))
                 return false;
             spanstr.push_back (ch);
         }
-        else if (L']' == mstr[mpos + 1])    // L"[a-]" trick
-            spanstr.push_back (mstr[mpos++]);
+        else if (L']' == mpos[1])    // L"[a-]" trick
+            spanstr.push_back (*mpos++);
         else {  // in here, L"[*--]" != L"[*+,-]", it is error.
             ++mpos;     // skip L'-'
-            if (L'-' == mstr[mpos] || ! compile_char (last))
+            if (L'-' == *mpos || ! compile_char (last))
                 return false;
             spanstr.pop_back ();
             if (spanstr.size () > 0)
@@ -227,14 +227,14 @@ bool vmcompiler::compile_char (wchar_t& ch)
     std::wstring::size_type idx;
     static const std::wstring pat1 (L"aeftnr");
     static const std::wstring val1 (L"\x07\x1b\f\t\n\r");
-    if ((L'\0' <= mstr[mpos] && mstr[mpos] <= '\x1f') || '\x7f' == mstr[mpos])
+    if ((L'\0' <= *mpos && *mpos <= '\x1f') || '\x7f' == *mpos)
         return false;
-    ch = mstr[mpos++];
+    ch = *mpos++;
     if (L'\\' != ch)
         return true;
-    if ((L'\0' <= mstr[mpos] && mstr[mpos] <= '\x1f') || '\x7f' == mstr[mpos])
+    if ((L'\0' <= *mpos && *mpos <= '\x1f') || '\x7f' == *mpos)
         return false;
-    ch = mstr[mpos++];
+    ch = *mpos++;
     if ((idx = pat1.find (ch)) != std::wstring::npos)
         ch = val1[idx];
     else if (c7toi (ch) < 8) {
@@ -243,9 +243,9 @@ bool vmcompiler::compile_char (wchar_t& ch)
             return false;
     }
     else if (L'x' == ch) {
-        if (L'{' == mstr[mpos]) {
+        if (L'{' == *mpos) {
             ++mpos;
-            if (! digits (ch, 16, 8) || L'}' != mstr[mpos++])
+            if (! digits (ch, 16, 8) || L'}' != *mpos++)
                 return false;
         }
         else if (! digits (ch, 16, 2))
@@ -257,11 +257,11 @@ bool vmcompiler::compile_char (wchar_t& ch)
 template<typename T>
 bool vmcompiler::digits (T& value, int const base, int const len)
 {
-    if (c7toi (mstr[mpos]) >= base)
+    if (c7toi (*mpos) >= base)
         return false;
     value = 0;
-    for (int i = 0; i < len && c7toi (mstr[mpos]) < base; i++)
-        value = value * base + c7toi (mstr[mpos++]);
+    for (int i = 0; i < len && c7toi (*mpos) < base; i++)
+        value = value * base + c7toi (*mpos++);
     return true;
 }
 
