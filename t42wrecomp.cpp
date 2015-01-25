@@ -233,23 +233,22 @@ bool vmcompiler::compile_char (wchar_t& ch)
     static const std::wstring pat1 (L"aeftnr");
     static const std::wstring val1 (L"\x07\x1b\f\t\n\r");
 
-    if (L'\0' == mstr[mpos])
+    if ((L'\0' <= mstr[mpos] && mstr[mpos] <= '\x1f') || '\x7f' == mstr[mpos])
         return false;
-    if (L'\\' != mstr[mpos]) {
-        ch = mstr[mpos++];
+    ch = mstr[mpos++];
+    if (L'\\' != ch)
         return true;
-    }
-    ++mpos;
-    if ((idx = pat1.find (mstr[mpos])) != std::wstring::npos) {
+    if ((L'\0' <= mstr[mpos] && mstr[mpos] <= '\x1f') || '\x7f' == mstr[mpos])
+        return false;
+    ch = mstr[mpos++];
+    if ((idx = pat1.find (ch)) != std::wstring::npos)
         ch = val1[idx];
-        ++mpos;
-    }
-    else if (c7toi (mstr[mpos]) < 8) {
+    else if (c7toi (ch) < 8) {
+        --mpos;
         if (! digits (ch, 8, 3))
             return false;
     }
-    else if (L'x' == mstr[mpos]) {
-        ++mpos;
+    else if (L'x' == ch) {
         if (L'{' == mstr[mpos]) {
             ++mpos;
             if (! digits (ch, 16, 8) || L'}' != mstr[mpos++])
@@ -258,10 +257,6 @@ bool vmcompiler::compile_char (wchar_t& ch)
         else if (! digits (ch, 16, 2))
             return false;
     }
-    else if ((mstr[mpos] < L'\0' || L'\x1f' < mstr[mpos]) && '\x7f' != mstr[mpos])
-        ch = mstr[mpos++];
-    else
-        return false;
     return true;
 }
 
