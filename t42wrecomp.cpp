@@ -194,35 +194,31 @@ bool vmcompiler::compile_cclass (std::vector<vmcode>& prog)
     if (L'^' == mstr[mpos])
         ++mpos;
     auto spanlist = std::make_shared<std::vector<vmspan>> ();
-    int count = -1;
     std::wstring spanstr;
-    while (L'\0' != mstr[mpos]) {
-        ++count;
-        if (count && L']' == mstr[mpos])
-            break;
-        if (count && L'-' == mstr[mpos] && L']' != mstr[mpos + 1])
-            return false;
-        if (! compile_char (ch))
-            return false;
-        spanstr.push_back (ch);
-        if (L'-' != mstr[mpos] || L']' == mstr[mpos + 1])
-            continue;
-        spanstr.pop_back ();
-        if (spanstr.size () > 0)
-            spanlist->push_back (vmspan (spanstr));
-        ++mpos;
-        if (L'-' == mstr[mpos] || L'\0' == mstr[mpos])
-            return false;
-        if (! compile_char (last))
-            return false;
-        spanlist->push_back (vmspan (ch, last));
-        spanstr.clear ();
-    }
+    if (! compile_char (ch))
+        return false;
+    spanstr.push_back (ch);
+    while (L']' != mstr[mpos])
+        if (L'-' != mstr[mpos]) {
+            if (! compile_char (ch))
+                return false;
+            spanstr.push_back (ch);
+        }
+        else if (L']' == mstr[mpos + 1])
+            spanstr.push_back (mstr[mpos++]);
+        else {
+            ++mpos;
+            spanstr.pop_back ();
+            if (spanstr.size () > 0)
+                spanlist->push_back (vmspan (spanstr));
+            spanstr.clear ();
+            if (! compile_char (last))
+                return false;
+            spanlist->push_back (vmspan (ch, last));
+        }
+    ++mpos;
     if (spanstr.size () > 0)
         spanlist->push_back (vmspan (spanstr));
-    if (L']' != mstr[mpos])
-        return false;
-    ++mpos;
     prog.push_back (vmcode (op, spanlist));
     return true;
 }
