@@ -113,7 +113,7 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
     auto cnt0 = std::make_shared<std::vector<int>> ();
     runthread (run, PROGSTART, pos, cap0, cnt0);
     rdy->clear ();
-    for (int sp = 0; ; ++sp) {
+    for (int sp = pos; ; ++sp) {
         bool epsilon = true;
         while (epsilon) {
             epsilon = false;
