@@ -22,7 +22,7 @@ struct vmspan {
 
 struct vmcode {
     enum operation {
-        MATCH, SAVE, CHAR, ANY, CCLASS, NCCLASS,
+        MATCH, SAVE, CHAR, ANY, CCLASS, NCCLASS, BKREF,
         BOL, EOL, BOS, EOS, WORDB, NWORDB, JMP, SPLIT,
         RESET, ISPLIT
     };

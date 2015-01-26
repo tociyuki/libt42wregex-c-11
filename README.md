@@ -81,9 +81,9 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / '\\z'              # end of string
            / '\\b'              # at word boundary
            / '\\B'              # not at word boundary
+           / '\\' ([1-7] ![0-7] / [8-9])    # back reference
            / char               # a character itself or an escaped character
                                 ## \d \D \w \W \s \S are not implemented
-                                ## back references (\1 and so on) are not implemented
 
     cclass <- char '-' char cclass  # range of characters
             / char cclass           # a character

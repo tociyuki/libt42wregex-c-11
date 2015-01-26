@@ -177,6 +177,12 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
         prog.push_back (vmcode (op2[idx]));
         mpos += 2;
     }
+    else if (L'\\' == *mpos
+            && ((1 <= c7toi (mpos[1]) && c7toi (mpos[1]) < 8 && c7toi (mpos[2]) >= 8)
+                || (8 <= c7toi (mpos[1]) && c7toi (mpos[1]) < 10))) {
+        prog.push_back (vmcode (vmcode::BKREF, c7toi (mpos[1]), 0));
+        mpos += 2;
+    }
     else if (L'\x3f' == *mpos || L'*' == *mpos || L'+' == *mpos)
         return false;
     else if (compile_char (ch))

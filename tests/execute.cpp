@@ -342,12 +342,27 @@ void test19 (test::simple& ts)
     ts.ok (m1 == L"", L"$1 == \"\"");
 }
 
+void test20 (test::simple& ts)
+{
+    t42::wregex re (L"(.*?)(<([a-z]+)>.*?</\\3>)");
+    std::wstring str (L"a b <strong>c <em>d</em> f</strong> g");
+    std::vector<int> cap;
+    int rc = re.exec (str, cap, 0);
+    ts.ok (rc == 35, L"qr/(.*?)(<([a-z]+)>.*?</\\3>)/ =~ \"a b <strong>c <em>d</em> f</strong>\"_\" g\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    std::wstring m2(str.begin () + cap[4], str.begin () + cap[5]);
+    ts.ok (m0 == L"a b <strong>c <em>d</em> f</strong>", L"$0 == \"a b <strong>c <em>d</em> f</strong>\"");
+    ts.ok (m1 == L"a b ", L"$1 == \"a b \"");
+    ts.ok (m2 == L"<strong>c <em>d</em> f</strong>", L"$0 == \"<strong>c <em>d</em> f</strong>\"");
+}
+
 int main (int argc, char* argv[])
 {
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (72);
+    test::simple ts (76);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -367,6 +382,7 @@ int main (int argc, char* argv[])
     test17 (ts);
     test18 (ts);
     test19 (ts);
+    test20 (ts);
     return ts.done_testing ();
 }
 

@@ -86,6 +86,11 @@ std::wstring list (std::wstring const& s)
             }
             t += L"\n";
             break;
+        case t42::wpike::vmcode::BKREF:
+            t += L"bkref ";
+            t += std::to_wstring (x.addr0);
+            t += L"\n";
+            break;
         case t42::wpike::vmcode::BOL:
             t += L"bol\n";
             break;
@@ -435,6 +440,21 @@ struct testspec {
     {L"\\0a",
      L"char '\\x00'\n"
      L"char 'a'\n"
+     L"match\n"},
+
+    {L"\\1a",
+     L"bkref 1\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"\\12a",
+     L"char '\\n'\n"
+     L"char 'a'\n"
+     L"match\n"},
+
+    {L"\\91",
+     L"bkref 9\n"
+     L"char '1'\n"
      L"match\n"},
 
     {L"\\12a",

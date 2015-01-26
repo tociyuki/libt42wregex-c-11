@@ -22,11 +22,13 @@ bool vmspan::member (wchar_t const c)
 
 struct vmthread {
     int ip;
+    int sp;
     std::shared_ptr<std::vector<int>> capture;
     std::shared_ptr<std::vector<int>> counter;
-    vmthread (int a, std::shared_ptr<std::vector<int>> const& b,
-                     std::shared_ptr<std::vector<int>> const& c)
-        : ip (a), capture (b), counter (c) { }
+    vmthread (int a, int b,
+            std::shared_ptr<std::vector<int>> const& c,
+            std::shared_ptr<std::vector<int>> const& d)
+        : ip (a), sp (b), capture (c), counter (d) { }
 };
 
 class vmengine {
@@ -38,7 +40,8 @@ private:
     bool isword (wchar_t c);
     bool incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>>& cclass);
     void runthread (
-        std::vector<vmthread>* const que, int const from, int const ip,
+        std::vector<vmthread>* const que, int const from,
+        int const ip, int const sp,
         std::shared_ptr<std::vector<int>>& capture,
         std::shared_ptr<std::vector<int>>& counter);
     template<typename T>
@@ -74,17 +77,17 @@ bool vmengine::incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>>& 
 }
 
 void vmengine::runthread (
-    std::vector<vmthread>* const que, int const from, int const ip,
+    std::vector<vmthread>* const que, int const from, int const ip, int const sp,
     std::shared_ptr<std::vector<int>>& capture,
     std::shared_ptr<std::vector<int>>& counter)
 {
     for (auto p = que->begin () + from; p != que->end (); ++p)
-        if (p->ip == ip) {
+        if (p->ip == ip && p->sp == sp) {
             p->capture = capture;
             p->counter = counter;
             return;
         }
-    vmthread th (ip, capture, counter);
+    vmthread th (ip, sp, capture, counter);
     que->push_back (th);
 }
 
@@ -110,13 +113,19 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
     cap0->push_back (pos);
     cap0->push_back (pos);
     auto cnt0 = std::make_shared<std::vector<int>> ();
-    runthread (run, 0, PROGSTART, cap0, cnt0);
+    runthread (run, 0, PROGSTART, pos, cap0, cnt0);
     rdy->clear ();
     for (int sp = pos; ; sp++) {
         for (int th = 0; th < run->size(); th++) {
             int ip = run->at (th).ip;
+            int a0 = prog[ip].addr0;
+            int a1 = prog[ip].addr1;
             auto cap = run->at (th).capture;
             auto cnt = run->at (th).counter;
+            if (sp < run->at (th).sp && run->at (th).sp < str.size ()) {
+                runthread (rdy, 0, ip, run->at (th).sp, cap, cnt);
+                continue;
+            }
             if (vmcode::MATCH == prog[ip].opcode) {
                 match = sp;
                 capture.clear ();
@@ -125,7 +134,7 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                 break;
             }
             if (vmcode::SAVE == prog[ip].opcode) {
-                run->at (th).capture = ptrvec_copy_set (cap, prog[ip].addr0, sp, -1);
+                run->at (th).capture = ptrvec_copy_set (cap, a0, sp, -1);
                 run->at (th--).ip = ip + 1;
                 continue;
             }
@@ -141,8 +150,8 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                 int n = (*cnt)[reg] + 1;
                 run->at (th).counter = cnt = ptrvec_copy_set (cnt, reg, n, 0);
                 if (n1 < n && (n2 == -1 || n <= n2)) {
-                    runthread (run, th + 1, prog[ip].addr1 + ip + 1, cap, cnt);
-                    run->at (th--).ip = prog[ip].addr0 + ip + 1;
+                    runthread (run, th + 1, a1 + ip + 1, sp, cap, cnt);
+                    run->at (th--).ip = a0 + ip + 1;
                 }
                 else if (n <= n1) {
                     run->at (th--).ip = ip + 1;
@@ -152,19 +161,30 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
             switch (prog[ip].opcode) {
             case vmcode::CHAR:
                 if (sp < str.size () && str[sp] == prog[ip].ch)
-                    runthread (rdy, 0, ip + 1, cap, cnt);
+                    runthread (rdy, 0, ip + 1, sp + 1, cap, cnt);
                 break;
             case vmcode::ANY:
                 if (sp < str.size ())
-                    runthread (rdy, 0, ip + 1, cap, cnt);
+                    runthread (rdy, 0, ip + 1, sp + 1, cap, cnt);
                 break;
             case vmcode::CCLASS:
                 if (sp < str.size () && incclass (str[sp], prog[ip].span))
-                    runthread (rdy, 0, ip + 1, cap, cnt);
+                    runthread (rdy, 0, ip + 1, sp + 1, cap, cnt);
                 break;
             case vmcode::NCCLASS:
                 if (sp < str.size () && ! incclass (str[sp], prog[ip].span))
-                    runthread (rdy, 0, ip + 1, cap, cnt);
+                    runthread (rdy, 0, ip + 1, sp + 1, cap, cnt);
+                break;
+            case vmcode::BKREF:
+                if (sp < str.size () && a0 * 2 + 1 < cap->size ()) {
+                    int i1 = (*cap)[a0 * 2];
+                    int i2 = (*cap)[a0 * 2 + 1];
+                    if (i1 < 0 || i1 >= i2)
+                        break;
+                    std::wstring gstr (str.begin () + i1, str.begin () + i2);
+                    if (str.compare (sp, i2 - i1, gstr) == 0)
+                        runthread (rdy, 0, ip + 1, sp + (i2 - i1), cap, cnt);
+                }
                 break;
             case vmcode::BOS:
                 if (sp == 0)
@@ -193,11 +213,11 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                     run->at (th--).ip = ip + 1;
                 break;
             case vmcode::JMP:
-                run->at (th--).ip = prog[ip].addr0 + ip + 1;
+                run->at (th--).ip = a0 + ip + 1;
                 break;
             case vmcode::SPLIT:
-                runthread (run, th + 1, prog[ip].addr1 + ip + 1, cap, cnt);
-                run->at (th--).ip = prog[ip].addr0 + ip + 1;
+                runthread (run, th + 1, a1 + ip + 1, sp, cap, cnt);
+                run->at (th--).ip = a0 + ip + 1;
                 break;
             default:
                 break;
