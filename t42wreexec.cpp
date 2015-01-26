@@ -1,6 +1,5 @@
 #include <vector>
 #include <string>
-#include <set>
 #include <memory>
 #include <utility>
 #include "t42wregex.hpp"
@@ -38,7 +37,6 @@ private:
     bool incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>>& cclass);
     void runthread (
         std::vector<vmthread>* const que,
-        std::set<std::pair<int,int>>& mark,
         int const ip,
         int const sp,
         std::shared_ptr<std::vector<int>>& capture,
@@ -77,16 +75,17 @@ bool vmengine::incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>>& 
 
 void vmengine::runthread (
     std::vector<vmthread>* const que,
-    std::set<std::pair<int,int>>& mark,
     int const ip,
     int const sp,
     std::shared_ptr<std::vector<int>>& capture,
     std::shared_ptr<std::vector<int>>& counter)
 {
-    std::pair<int,int> state{ip, sp};
-    if (mark.count (state) == 1)
-        return;
-    mark.insert (state);
+    for (auto x : *que)
+        if (x.ip == ip && x.sp == sp) {
+            x.capture = capture;
+            x.counter = counter;
+            return;
+        }
     que->push_back (vmthread{ip, sp, capture, counter});
 }
 
@@ -109,116 +108,125 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
     auto run = new std::vector<vmthread>;
     auto rdy = new std::vector<vmthread>;
     auto cap0 = std::make_shared<std::vector<int>> ();
-    std::set<std::pair<int,int>> mark;
     cap0->push_back (pos);
     cap0->push_back (pos);
     auto cnt0 = std::make_shared<std::vector<int>> ();
-    runthread (run, mark, PROGSTART, pos, cap0, cnt0);
+    runthread (run, PROGSTART, pos, cap0, cnt0);
     rdy->clear ();
-    while (! run->empty ()) {
-        mark.clear ();
-        for (int th = 0; th < run->size(); th++) {
-            int ip = run->at (th).ip;
-            int a0 = prog[ip].addr0;
-            int a1 = prog[ip].addr1;
-            int sp = run->at (th).sp;
-            auto cap = run->at (th).capture;
-            auto cnt = run->at (th).counter;
-            if (vmcode::MATCH == prog[ip].opcode) {
-                match = sp;
-                cap = ptrvec_copy_set (cap, 1, sp, -1);
-                capture.clear ();
-                capture.insert (capture.begin (), cap->begin (), cap->end ());
-                break;
-            }
-            switch (prog[ip].opcode) {
-            case vmcode::CHAR:
-                if (sp < str.size () && str[sp] == prog[ip].ch)
-                    runthread (rdy, mark, ip + 1, sp + 1, cap, cnt);
-                break;
-            case vmcode::ANY:
-                if (sp < str.size ())
-                    runthread (rdy, mark, ip + 1, sp + 1, cap, cnt);
-                break;
-            case vmcode::CCLASS:
-                if (sp < str.size () && incclass (str[sp], prog[ip].span))
-                    runthread (rdy, mark, ip + 1, sp + 1, cap, cnt);
-                break;
-            case vmcode::NCCLASS:
-                if (sp < str.size () && ! incclass (str[sp], prog[ip].span))
-                    runthread (rdy, mark, ip + 1, sp + 1, cap, cnt);
-                break;
-            case vmcode::BKREF:
-                if (sp < str.size () && a0 * 2 + 1 < cap->size ()) {
-                    int i1 = (*cap)[a0 * 2];
-                    int i2 = (*cap)[a0 * 2 + 1];
-                    if (i1 < 0 || i1 >= i2)
-                        break;
-                    std::wstring gstr (str.begin () + i1, str.begin () + i2);
-                    if (str.compare (sp, i2 - i1, gstr) == 0)
-                        runthread (rdy, mark, ip + 1, sp + (i2 - i1), cap, cnt);
+    for (int sp = 0; ; ++sp) {
+        bool epsilon = true;
+        while (epsilon) {
+            epsilon = false;
+            for (int th = 0; th < run->size(); ++th) {
+                int ip = run->at (th).ip;
+                int a0 = prog[ip].addr0;
+                int a1 = prog[ip].addr1;
+                auto cap = run->at (th).capture;
+                auto cnt = run->at (th).counter;
+                if (sp < run->at (th).sp) {
+                    runthread (rdy, ip, run->at (th).sp, cap, cnt);
+                    continue;
                 }
-                break;
-            case vmcode::BOS:
-                if (sp == 0)
-                    runthread (rdy, mark, ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::EOS:
-                if (sp >= str.size ())
-                    runthread (rdy, mark, ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::BOL:
-                if (sp == 0 || str[sp - 1] == L'\n')
-                    runthread (rdy, mark, ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::EOL:
-                if (sp >= str.size () || str[sp] == L'\n')
-                    runthread (rdy, mark, ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::WORDB:
-                if (iswordboundary (str, sp))
-                    runthread (rdy, mark, ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::NWORDB:
-                if (! iswordboundary (str, sp))
-                    runthread (rdy, mark, ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::SAVE:
-                cap = ptrvec_copy_set (cap, a0, sp, -1);
-                runthread (rdy, mark, ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::JMP:
-                runthread (rdy, mark, a0 + ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::SPLIT:
-                runthread (rdy, mark, a0 + ip + 1, sp, cap, cnt);
-                runthread (rdy, mark, a1 + ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::RESET:
-                cnt = ptrvec_copy_set (cnt, prog[ip].reg, 0, 0);
-                runthread (rdy, mark, ip + 1, sp, cap, cnt);
-                break;
-            case vmcode::ISPLIT:
-                {
-                    int reg = prog[ip].reg;
-                    int n1 = prog[ip].n1;
-                    int n2 = prog[ip].n2;
-                    int n = (*cnt)[reg] + 1;
-                    run->at (th).counter = cnt = ptrvec_copy_set (cnt, reg, n, 0);
-                    if (n <= n1)
-                        runthread (rdy, mark, ip + 1, sp, cap, cnt);
-                    else if (n2 == -1 || n <= n2) {
-                        runthread (rdy, mark, a0 + ip + 1, sp, cap, cnt);
-                        runthread (rdy, mark, a1 + ip + 1, sp, cap, cnt);
+                if (vmcode::MATCH == prog[ip].opcode) {
+                    match = sp;
+                    cap = ptrvec_copy_set (cap, 1, sp, -1);
+                    capture.clear ();
+                    capture.insert (capture.begin (), cap->begin (), cap->end ());
+                    break;
+                }
+                if (prog[ip].opcode >= vmcode::BOL)
+                    epsilon = true;
+                switch (prog[ip].opcode) {
+                case vmcode::CHAR:
+                    if (sp < str.size () && str[sp] == prog[ip].ch)
+                        runthread (rdy, ip + 1, sp + 1, cap, cnt);
+                    break;
+                case vmcode::ANY:
+                    if (sp < str.size ())
+                        runthread (rdy, ip + 1, sp + 1, cap, cnt);
+                    break;
+                case vmcode::CCLASS:
+                    if (sp < str.size () && incclass (str[sp], prog[ip].span))
+                        runthread (rdy, ip + 1, sp + 1, cap, cnt);
+                    break;
+                case vmcode::NCCLASS:
+                    if (sp < str.size () && ! incclass (str[sp], prog[ip].span))
+                        runthread (rdy, ip + 1, sp + 1, cap, cnt);
+                    break;
+                case vmcode::BKREF:
+                    if (sp < str.size () && a0 * 2 + 1 < cap->size ()) {
+                        int i1 = (*cap)[a0 * 2];
+                        int i2 = (*cap)[a0 * 2 + 1];
+                        if (i1 < 0 || i1 >= i2)
+                            break;
+                        std::wstring gstr (str.begin () + i1, str.begin () + i2);
+                        if (str.compare (sp, i2 - i1, gstr) == 0)
+                            runthread (rdy, ip + 1, sp + (i2 - i1), cap, cnt);
                     }
+                    break;
+                case vmcode::BOL:
+                    if (sp == 0 || str[sp - 1] == L'\n')
+                        runthread (rdy, ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::EOL:
+                    if (sp >= str.size () || str[sp] == L'\n')
+                        runthread (rdy, ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::BOS:
+                    if (sp == 0)
+                        runthread (rdy, ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::EOS:
+                    if (sp >= str.size ())
+                        runthread (rdy, ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::WORDB:
+                    if (iswordboundary (str, sp))
+                        runthread (rdy, ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::NWORDB:
+                    if (! iswordboundary (str, sp))
+                        runthread (rdy, ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::SAVE:
+                    cap = ptrvec_copy_set (cap, a0, sp, -1);
+                    runthread (rdy, ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::JMP:
+                    runthread (rdy, a0 + ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::SPLIT:
+                    runthread (rdy, a0 + ip + 1, sp, cap, cnt);
+                    runthread (rdy, a1 + ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::RESET:
+                    cnt = ptrvec_copy_set (cnt, prog[ip].reg, 0, 0);
+                    runthread (rdy, ip + 1, sp, cap, cnt);
+                    break;
+                case vmcode::ISPLIT:
+                    {
+                        int reg = prog[ip].reg;
+                        int n1 = prog[ip].n1;
+                        int n2 = prog[ip].n2;
+                        int n = (*cnt)[reg] + 1;
+                        run->at (th).counter = cnt = ptrvec_copy_set (cnt, reg, n, 0);
+                        if (n <= n1)
+                            runthread (rdy, ip + 1, sp, cap, cnt);
+                        else if (n2 == -1 || n <= n2) {
+                            runthread (rdy, a0 + ip + 1, sp, cap, cnt);
+                            runthread (rdy, a1 + ip + 1, sp, cap, cnt);
+                        }
+                    }
+                    break;
+                default:
+                    break;
                 }
-                break;
-            default:
-                break;
             }
+            std::swap (run, rdy);
+            rdy->clear ();
         }
-        std::swap (run, rdy);
-        rdy->clear ();
+        if (sp >= str.size ())
+            break;
     }
     delete run;
     delete rdy;

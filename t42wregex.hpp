@@ -22,9 +22,9 @@ struct vmspan {
 
 struct vmcode {
     enum operation {
-        MATCH, SAVE, CHAR, ANY, CCLASS, NCCLASS, BKREF,
-        BOL, EOL, BOS, EOS, WORDB, NWORDB, JMP, SPLIT,
-        RESET, ISPLIT
+        MATCH, CHAR, ANY, CCLASS, NCCLASS, BKREF, // non-epsilon
+        BOL, EOL, BOS, EOS, WORDB, NWORDB, SAVE,  // epsilon
+        JMP, SPLIT, RESET, ISPLIT                 // epsilon
     };
     operation opcode;
     int addr0;
