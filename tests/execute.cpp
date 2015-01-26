@@ -171,9 +171,22 @@ void test10 (test::simple& ts)
     ts.ok (m1 == L"abcfg", L"$1 == \"abcfg\"");
 }
 
-void test11 (test::simple& ts)
+void test11g (test::simple& ts)
 {
     t42::wregex re (L".*([0-9]+(?:[.][0-9]*)?)");
+    std::wstring str (L"number 3.1415 is the pi");
+    std::vector<int> cap;
+    int rc = re.exec (str, cap, 0);
+    ts.ok (rc == 13, L"qr/.*([0-9]+(?:[.][0-9]*)?)/ =~ \"number 3.1415\"_\" is the pi\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    ts.ok (m0 == L"number 3.1415", L"$0 == \"number 3.1415\"");
+    ts.ok (m1 == L"5", L"$1 == \"5\"");
+}
+
+void test11 (test::simple& ts)
+{
+    t42::wregex re (L".*?([0-9]+(?:[.][0-9]*)?)");
     std::wstring str (L"number 3.1415 is the pi");
     std::vector<int> cap;
     int rc = re.exec (str, cap, 0);
@@ -362,7 +375,7 @@ int main (int argc, char* argv[])
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (76);
+    test::simple ts (79);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -373,6 +386,7 @@ int main (int argc, char* argv[])
     test8 (ts);
     test9 (ts);
     test10 (ts);
+    test11g (ts);
     test11 (ts);
     test12 (ts);
     test13 (ts);
