@@ -133,31 +133,6 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                 capture[1] = sp;
                 break;
             }
-            if (vmcode::SAVE == prog[ip].opcode) {
-                run->at (th).capture = ptrvec_copy_set (cap, a0, sp, -1);
-                run->at (th--).ip = ip + 1;
-                continue;
-            }
-            if (vmcode::RESET == prog[ip].opcode) {
-                run->at (th).counter = ptrvec_copy_set (cnt, prog[ip].reg, 0, 0);
-                run->at (th--).ip = ip + 1;
-                continue;
-            }
-            if (vmcode::ISPLIT == prog[ip].opcode) {
-                int reg = prog[ip].reg;
-                int n1 = prog[ip].n1;
-                int n2 = prog[ip].n2;
-                int n = (*cnt)[reg] + 1;
-                run->at (th).counter = cnt = ptrvec_copy_set (cnt, reg, n, 0);
-                if (n1 < n && (n2 == -1 || n <= n2)) {
-                    runthread (run, th + 1, a1 + ip + 1, sp, cap, cnt);
-                    run->at (th--).ip = a0 + ip + 1;
-                }
-                else if (n <= n1) {
-                    run->at (th--).ip = ip + 1;
-                }
-                continue;
-            }
             switch (prog[ip].opcode) {
             case vmcode::CHAR:
                 if (sp < str.size () && str[sp] == prog[ip].ch)
@@ -212,12 +187,35 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
                 if (! iswordboundary (str, sp))
                     run->at (th--).ip = ip + 1;
                 break;
+            case vmcode::SAVE:
+                run->at (th).capture = ptrvec_copy_set (cap, a0, sp, -1);
+                run->at (th--).ip = ip + 1;
+                break;
             case vmcode::JMP:
                 run->at (th--).ip = a0 + ip + 1;
                 break;
             case vmcode::SPLIT:
                 runthread (run, th + 1, a1 + ip + 1, sp, cap, cnt);
                 run->at (th--).ip = a0 + ip + 1;
+                break;
+            case vmcode::RESET:
+                run->at (th).counter = ptrvec_copy_set (cnt, prog[ip].reg, 0, 0);
+                run->at (th--).ip = ip + 1;
+                break;
+            case vmcode::ISPLIT:
+                {
+                    int reg = prog[ip].reg;
+                    int n1 = prog[ip].n1;
+                    int n2 = prog[ip].n2;
+                    int n = (*cnt)[reg] + 1;
+                    run->at (th).counter = cnt = ptrvec_copy_set (cnt, reg, n, 0);
+                    if (n <= n1)
+                        run->at (th--).ip = ip + 1;
+                    else if (n2 == -1 || n <= n2) {
+                        runthread (run, th + 1, a1 + ip + 1, sp, cap, cnt);
+                        run->at (th--).ip = a0 + ip + 1;
+                    }
+                }
                 break;
             default:
                 break;
