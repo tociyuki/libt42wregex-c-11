@@ -20,6 +20,7 @@ private:
     bool compile_term (std::vector<vmcode>& prog);
     bool compile_interval (std::vector<vmcode>& lhs);
     bool compile_factor (std::vector<vmcode>& prog);
+    bool compile_group (std::vector<vmcode>& prog);
     bool compile_cclass (std::vector<vmcode>& prog);
     bool compile_char (wchar_t& ch);
     template<typename T>
@@ -153,15 +154,9 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
     wchar_t ch;
     std::wstring::size_type idx;
     if (L'(' == *mpos) {
-        int const skip = mstr.compare (mpos - mstr.begin (), 3, L"(\x3f:") == 0 ? 3 : 1;
-        mpos += skip;
-        int const n = mgroup + 1;
-        if (skip == 1)
-            prog.push_back (vmcode (vmcode::SAVE, (++mgroup) * 2, 0));
-        if (! compile_exp (prog) || L')' != *mpos++)
+        ++mpos;
+        if (! compile_group (prog))
             return false;
-        if (skip == 1)
-            prog.push_back (vmcode (vmcode::SAVE, n * 2 + 1, 0));
     }
     else if (L'[' == *mpos) {
         ++mpos;
@@ -189,6 +184,35 @@ bool vmcompiler::compile_factor (std::vector<vmcode>& prog)
         prog.push_back (vmcode (vmcode::CHAR, ch));
     else
         return false;
+    return true;
+}
+
+bool vmcompiler::compile_group (std::vector<vmcode>& prog)
+{
+    vmcode::operation op = vmcode::SAVE;
+    if (L'\x3f' == *mpos) {
+        op = L':' == mpos[1] ? vmcode::ANY
+           : L'=' == mpos[1] ? vmcode::LKAHEAD
+           : L'!' == mpos[1] ? vmcode::NLKAHEAD
+           : op;
+        if (vmcode::SAVE == op)
+            return false;
+        mpos += 2;
+    }
+    int n = mgroup + 1;
+    if (vmcode::SAVE == op)
+        prog.push_back (vmcode (vmcode::SAVE, ++mgroup * 2, 0));
+    int dot = prog.size ();
+    if (vmcode::LKAHEAD == op || vmcode::NLKAHEAD == op)
+        prog.push_back (vmcode (op, 0, 0));
+    if (! compile_exp (prog) || L')' != *mpos++)
+        return false;
+    if (vmcode::LKAHEAD == op || vmcode::NLKAHEAD == op) {
+        prog.push_back (vmcode (vmcode::MATCH));
+        prog[dot].addr1 = prog.size () - dot - 1;
+    }
+    if (vmcode::SAVE == op)
+        prog.push_back (vmcode (vmcode::SAVE, n * 2 + 1, 0));
     return true;
 }
 

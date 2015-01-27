@@ -24,7 +24,7 @@ struct vmcode {
     enum operation {
         MATCH, CHAR, ANY, CCLASS, NCCLASS, BKREF, // non-epsilon
         BOL, EOL, BOS, EOS, WORDB, NWORDB, SAVE,  // epsilon
-        JMP, SPLIT, RESET, ISPLIT                 // epsilon
+        JMP, SPLIT, LKAHEAD, NLKAHEAD, RESET, ISPLIT // epsilon
     };
     operation opcode;
     int addr0;

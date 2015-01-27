@@ -370,12 +370,48 @@ void test20 (test::simple& ts)
     ts.ok (m2 == L"<strong>c <em>d</em> f</strong>", L"$0 == \"<strong>c <em>d</em> f</strong>\"");
 }
 
+void test21 (test::simple& ts)
+{
+    t42::wregex re (L"[a-z]+(?=([.!?]))(.:)");
+    std::wstring str (L"lookahead!: works");
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
+    ts.ok (rc == 11, L"qr/[a-z]+(?=([.!?]))(.:)/ =~ \"lookahead!:\"_\" works\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    std::wstring m2(str.begin () + cap[4], str.begin () + cap[5]);
+    ts.ok (m0 == L"lookahead!:", L"$0 == \"lookahead!:\"");
+    ts.ok (m1 == L"!", L"$1 == \"!\"");
+    ts.ok (m2 == L"!:", L"$0 == \"!:\"");
+
+    std::wstring str2 (L"lookahead,: works");
+    std::wstring::size_type rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 == std::wstring::npos, L"qr/[a-z]+(?=([.!?]))(.:)/ !~ \"lookahead,: works\"");
+}
+
+void test22 (test::simple& ts)
+{
+    t42::wregex re (L"abc(?!efg)(.{3,});");
+    std::wstring str (L"abc345; negative lookahead.");
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
+    ts.ok (rc == 7, L"qr/abc(?!efg)(.{3,});/ =~ \"abc345;\"_\" negative lookahead.\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    ts.ok (m0 == L"abc345;", L"$0 == \"abc345;\"");
+    ts.ok (m1 == L"345", L"$1 == \"345\"");
+
+    std::wstring str2 (L"abcefg; negative lookahead.");
+    std::wstring::size_type rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 == std::wstring::npos, L"qr/abc(?!efg)(.{3,});/ !~ \"abcefg; negative lookahead.\"");
+}
+
 int main (int argc, char* argv[])
 {
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (79);
+    test::simple ts (88);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -397,6 +433,8 @@ int main (int argc, char* argv[])
     test18 (ts);
     test19 (ts);
     test20 (ts);
+    test21 (ts);
+    test22 (ts);
     return ts.done_testing ();
 }
 

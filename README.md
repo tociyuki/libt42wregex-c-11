@@ -72,7 +72,8 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
 
     factor <- '(' regex ')'     # capture group
            / '(?:' regex ')'    # uncaptured subexpression
-                                ## lookahead (?=..) (?!..) are not implemented
+           / '(?=' regex ')'    # positive lookahead
+           / '(?!' regex ')'    # negative lookahead
                                 ## option controls (?imsx:..) are not implemented
            / '.'                # any character includings with '\n'
            / '[' cclass ']'     # character class

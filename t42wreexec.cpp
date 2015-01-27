@@ -41,8 +41,11 @@ private:
     typedef std::vector<vmthread> thread_que;
     bool mepsilon;
     std::wstring::size_type advance (std::vector<vmcode> const& prog,
-        std::wstring const& str, vmcapture& capture,
+        std::wstring const& str, vmcap_ptr& cap, vmcnt_ptr& cnt,
         std::size_t const start, std::wstring::size_type const pos);
+    std::wstring::size_type subadvance (std::vector<vmcode> const& prog,
+        std::wstring const& str, vmcap_ptr& cap, vmcnt_ptr& cnt,
+        std::size_t const ip, std::wstring::size_type const sp);
     bool iswordboundary (std::wstring const& str, std::wstring::size_type const sp) const;
     bool isword (wchar_t const c) const;
     bool incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>> const& cclass) const;
@@ -59,8 +62,9 @@ private:
 
 bool vmengine::isword (wchar_t const c) const
 {
-    return (c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z')
-        || (c >= L'0' && c <= L'9') || c == L'_';
+    static const std::wstring words (
+        L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
+    return words.find (c) != std::wstring::npos;
 }
 
 bool vmengine::iswordboundary (std::wstring const& str, std::wstring::size_type const sp) const
@@ -130,22 +134,32 @@ std::size_t vmengine::check_backref (std::wstring const& str,
 std::wstring::size_type vmengine::exec (std::vector<vmcode> const& prog,
     std::wstring const& str, vmcapture& capture, std::wstring::size_type const pos)
 {
+    vmcap_ptr cap0 = std::make_shared<vmcapture> ();
+    vmcnt_ptr cnt0 = std::make_shared<std::vector<int>> ();
+    cap0->push_back (pos);
+    cap0->push_back (pos);
+    std::wstring::size_type idx = advance (prog, str, cap0, cnt0, PROGSTART, pos);
     capture.clear ();
-    capture.push_back (pos);
-    capture.push_back (pos);
-    return advance (prog, str, capture, PROGSTART, pos);
+    capture.insert (capture.begin (), cap0->begin (), cap0->end ());
+    return idx;
+}
+
+std::wstring::size_type vmengine::subadvance (std::vector<vmcode> const& prog,
+    std::wstring const& str, vmcap_ptr& cap, vmcnt_ptr& cnt,
+    std::size_t const ip, std::wstring::size_type const sp)
+{
+    vmengine sub;
+    return sub.advance (prog, str, cap, cnt, ip, sp);
 }
 
 std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
-    std::wstring const& str, vmcapture& capture,
+    std::wstring const& str, vmcap_ptr& cap0, vmcnt_ptr& cnt0,
     std::size_t const start, std::wstring::size_type const pos)
 {
     std::wstring::size_type match = std::wstring::npos;
     thread_que* run = new thread_que;
     thread_que* rdy = new thread_que;
-    vmcap_ptr cap0 = std::make_shared<vmcapture> (capture.begin (), capture.end ());
-    vmcnt_ptr cnt0 = std::make_shared<std::vector<int>> ();
-    addthread (run, PROGSTART, pos, cap0, cnt0);
+    addthread (run, start, pos, cap0, cnt0);
     for (std::wstring::size_type sp = pos; ; ++sp) {
         mepsilon = true;
         while (mepsilon) {
@@ -153,6 +167,7 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
             for (auto const th : *run) {
                 vmcap_ptr cap;
                 vmcnt_ptr cnt;
+                std::wstring::size_type submatch;
                 int n;
                 if (sp < th.sp) {
                     addthread (rdy, th.ip, th.sp, th.cap, th.cnt);
@@ -161,9 +176,8 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                 vmcode const op = prog[th.ip];
                 if (vmcode::MATCH == op.opcode) {
                     match = th.sp;
-                    cap = ptrvec_copy_set (th.cap, 1, th.sp, std::wstring::npos);
-                    capture.clear ();
-                    capture.insert (capture.begin (), cap->begin (), cap->end ());
+                    cap0 = ptrvec_copy_set (th.cap, 1, th.sp, std::wstring::npos);
+                    cnt0 = th.cnt;
                     break;
                 }
                 switch (op.opcode) {
@@ -236,6 +250,14 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                         addepsilon (rdy, op.addr0 + th.ip + 1, sp, th.cap, cnt);
                         addepsilon (rdy, op.addr1 + th.ip + 1, sp, th.cap, cnt);
                     }
+                    break;
+                case vmcode::LKAHEAD:
+                case vmcode::NLKAHEAD:
+                    cap = std::make_shared<vmcapture> (th.cap->begin (), th.cap->end ());
+                    cnt = std::make_shared<std::vector<int>> (th.cnt->begin (), th.cnt->end ());
+                    submatch = subadvance (prog, str, cap, cnt, op.addr0 + th.ip + 1, sp);
+                    if ((submatch == std::wstring::npos) ^ (op.opcode == vmcode::LKAHEAD))
+                        addepsilon (rdy, op.addr1 + th.ip + 1, sp, cap, cnt);
                     break;
                 default:
                     throw "unknown vmcode operation. compile error?";

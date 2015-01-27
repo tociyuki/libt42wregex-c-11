@@ -121,6 +121,20 @@ std::wstring list (std::wstring const& s)
             t += std::to_wstring (x.addr1);
             t += L"\n";
             break;
+        case t42::wpike::vmcode::LKAHEAD:
+            t += L"lkahead ";
+            t += std::to_wstring (x.addr0);
+            t += L",";
+            t += std::to_wstring (x.addr1);
+            t += L"\n";
+            break;
+        case t42::wpike::vmcode::NLKAHEAD:
+            t += L"nlkahead ";
+            t += std::to_wstring (x.addr0);
+            t += L",";
+            t += std::to_wstring (x.addr1);
+            t += L"\n";
+            break;
         case t42::wpike::vmcode::RESET:
             t += L"reset %r";
             t += std::to_wstring (x.reg);
@@ -605,6 +619,22 @@ struct testspec {
 
     {L"[^]]",
      L"ncclass \"]\"\n"
+     L"match\n"},
+
+    {L"a(?=b).",
+     L"char 'a'\n"
+     L"lkahead 0,2\n"
+     L"char 'b'\n"
+     L"match\n"
+     L"any\n"
+     L"match\n"},
+
+    {L"a(?!b).",
+     L"char 'a'\n"
+     L"nlkahead 0,2\n"
+     L"char 'b'\n"
+     L"match\n"
+     L"any\n"
      L"match\n"},
 };
 
