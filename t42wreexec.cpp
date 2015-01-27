@@ -23,8 +23,8 @@ bool vmspan::member (wchar_t const c)
 struct vmthread {
     int ip;
     int sp;
-    std::shared_ptr<std::vector<int>> capture;
-    std::shared_ptr<std::vector<int>> counter;
+    std::shared_ptr<std::vector<int>> cap;
+    std::shared_ptr<std::vector<int>> cnt;
 };
 
 class vmengine {
@@ -32,15 +32,17 @@ public:
     int exec (std::vector<vmcode>& prog, std::wstring& str, std::vector<int>& capture,
         std::wstring::size_type const pos);
 private:
+    typedef std::vector<vmthread> thread_que;
+    typedef std::shared_ptr<std::vector<int>> cap_ptr;
+    typedef std::shared_ptr<std::vector<int>> cnt_ptr;
+    bool mepsilon;
     bool iswordboundary (std::wstring& str, int sp);
     bool isword (wchar_t c);
     bool incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>>& cclass);
-    void runthread (
-        std::vector<vmthread>* const que,
-        int const ip,
-        int const sp,
-        std::shared_ptr<std::vector<int>>& capture,
-        std::shared_ptr<std::vector<int>>& counter);
+    void rdythread (thread_que* const rdy,
+        int const ip, int const sp, cap_ptr& cap, cnt_ptr& cnt);
+    void rdyepsilon (thread_que* const rdy,
+        int const ip, int const sp, cap_ptr& cap, cnt_ptr& cnt);
     template<typename T>
     std::shared_ptr<std::vector<T>> ptrvec_copy_set(
         std::shared_ptr<std::vector<T>> v, int i, T x, T x0);
@@ -73,20 +75,23 @@ bool vmengine::incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>>& 
     return false;
 }
 
-void vmengine::runthread (
-    std::vector<vmthread>* const que,
-    int const ip,
-    int const sp,
-    std::shared_ptr<std::vector<int>>& capture,
-    std::shared_ptr<std::vector<int>>& counter)
+void vmengine::rdythread (vmengine::thread_que* const rdy,
+    int const ip, int const sp, vmengine::cap_ptr& cap, vmengine::cnt_ptr& cnt)
 {
-    for (auto x : *que)
-        if (x.ip == ip && x.sp == sp) {
-            x.capture = capture;
-            x.counter = counter;
+    for (auto th : *rdy)
+        if (th.ip == ip && th.sp == sp) {
+            th.cap = cap;
+            th.cnt = cnt;
             return;
         }
-    que->push_back (vmthread{ip, sp, capture, counter});
+    rdy->push_back (vmthread{ip, sp, cap, cnt});
+}
+
+void vmengine::rdyepsilon (vmengine::thread_que* const rdy,
+    int const ip, int const sp, vmengine::cap_ptr& cap, vmengine::cnt_ptr& cnt)
+{
+    mepsilon = true;
+    rdythread (rdy, ip, sp, cap, cnt);
 }
 
 template<typename T>
@@ -105,117 +110,110 @@ int vmengine::exec (std::vector<vmcode>& prog, std::wstring& str,
 {
     enum { PROGSTART = 0 };
     int match = ::t42::wregex::notmatch;
-    auto run = new std::vector<vmthread>;
-    auto rdy = new std::vector<vmthread>;
-    auto cap0 = std::make_shared<std::vector<int>> ();
+    thread_que* run = new thread_que;
+    thread_que* rdy = new thread_que;
+    cap_ptr cap0 = std::make_shared<std::vector<int>> ();
     cap0->push_back (pos);
     cap0->push_back (pos);
-    auto cnt0 = std::make_shared<std::vector<int>> ();
-    runthread (run, PROGSTART, pos, cap0, cnt0);
+    cnt_ptr cnt0 = std::make_shared<std::vector<int>> ();
+    rdythread (run, PROGSTART, pos, cap0, cnt0);
     rdy->clear ();
     for (int sp = pos; ; ++sp) {
-        bool epsilon = true;
-        while (epsilon) {
-            epsilon = false;
-            for (int th = 0; th < run->size(); ++th) {
-                int ip = run->at (th).ip;
-                int a0 = prog[ip].addr0;
-                int a1 = prog[ip].addr1;
-                auto cap = run->at (th).capture;
-                auto cnt = run->at (th).counter;
-                if (sp < run->at (th).sp) {
-                    runthread (rdy, ip, run->at (th).sp, cap, cnt);
+        mepsilon = true;
+        while (mepsilon) {
+            mepsilon = false;
+            for (auto th : *run) {
+                cap_ptr cap;
+                cnt_ptr cnt;
+                int n;
+                int a0 = prog[th.ip].addr0;
+                int a1 = prog[th.ip].addr1;
+                if (sp < th.sp) {
+                    rdythread (rdy, th.ip, th.sp, th.cap, th.cnt);
                     continue;
                 }
-                if (vmcode::MATCH == prog[ip].opcode) {
-                    match = sp;
-                    cap = ptrvec_copy_set (cap, 1, sp, -1);
+                if (vmcode::MATCH == prog[th.ip].opcode) {
+                    match = th.sp;
+                    cap = ptrvec_copy_set (th.cap, 1, th.sp, -1);
                     capture.clear ();
                     capture.insert (capture.begin (), cap->begin (), cap->end ());
                     break;
                 }
-                if (prog[ip].opcode >= vmcode::BOL)
-                    epsilon = true;
-                switch (prog[ip].opcode) {
+                switch (prog[th.ip].opcode) {
                 case vmcode::CHAR:
-                    if (sp < str.size () && str[sp] == prog[ip].ch)
-                        runthread (rdy, ip + 1, sp + 1, cap, cnt);
+                    if (sp < str.size () && str[sp] == prog[th.ip].ch)
+                        rdythread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
                     break;
                 case vmcode::ANY:
                     if (sp < str.size ())
-                        runthread (rdy, ip + 1, sp + 1, cap, cnt);
+                        rdythread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
                     break;
                 case vmcode::CCLASS:
-                    if (sp < str.size () && incclass (str[sp], prog[ip].span))
-                        runthread (rdy, ip + 1, sp + 1, cap, cnt);
+                    if (sp < str.size () && incclass (str[sp], prog[th.ip].span))
+                        rdythread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
                     break;
                 case vmcode::NCCLASS:
-                    if (sp < str.size () && ! incclass (str[sp], prog[ip].span))
-                        runthread (rdy, ip + 1, sp + 1, cap, cnt);
+                    if (sp < str.size () && ! incclass (str[sp], prog[th.ip].span))
+                        rdythread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
                     break;
                 case vmcode::BKREF:
-                    if (sp < str.size () && a0 * 2 + 1 < cap->size ()) {
-                        int i1 = (*cap)[a0 * 2];
-                        int i2 = (*cap)[a0 * 2 + 1];
+                    if (sp < str.size () && a0 * 2 + 1 < th.cap->size ()) {
+                        int i1 = th.cap->at (a0 * 2);
+                        int i2 = th.cap->at (a0 * 2 + 1);
                         if (i1 < 0 || i1 >= i2)
                             break;
                         std::wstring gstr (str.begin () + i1, str.begin () + i2);
                         if (str.compare (sp, i2 - i1, gstr) == 0)
-                            runthread (rdy, ip + 1, sp + (i2 - i1), cap, cnt);
+                            rdythread (rdy, th.ip + 1, sp + (i2 - i1), th.cap, th.cnt);
                     }
                     break;
                 case vmcode::BOL:
                     if (sp == 0 || str[sp - 1] == L'\n')
-                        runthread (rdy, ip + 1, sp, cap, cnt);
+                        rdyepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::EOL:
                     if (sp >= str.size () || str[sp] == L'\n')
-                        runthread (rdy, ip + 1, sp, cap, cnt);
+                        rdyepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::BOS:
                     if (sp == 0)
-                        runthread (rdy, ip + 1, sp, cap, cnt);
+                        rdyepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::EOS:
                     if (sp >= str.size ())
-                        runthread (rdy, ip + 1, sp, cap, cnt);
+                        rdyepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::WORDB:
                     if (iswordboundary (str, sp))
-                        runthread (rdy, ip + 1, sp, cap, cnt);
+                        rdyepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::NWORDB:
                     if (! iswordboundary (str, sp))
-                        runthread (rdy, ip + 1, sp, cap, cnt);
+                        rdyepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::SAVE:
-                    cap = ptrvec_copy_set (cap, a0, sp, -1);
-                    runthread (rdy, ip + 1, sp, cap, cnt);
+                    cap = ptrvec_copy_set (th.cap, a0, sp, -1);
+                    rdyepsilon (rdy, th.ip + 1, sp, cap, th.cnt);
                     break;
                 case vmcode::JMP:
-                    runthread (rdy, a0 + ip + 1, sp, cap, cnt);
+                    rdyepsilon (rdy, a0 + th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::SPLIT:
-                    runthread (rdy, a0 + ip + 1, sp, cap, cnt);
-                    runthread (rdy, a1 + ip + 1, sp, cap, cnt);
+                    rdyepsilon (rdy, a0 + th.ip + 1, sp, th.cap, th.cnt);
+                    rdyepsilon (rdy, a1 + th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::RESET:
-                    cnt = ptrvec_copy_set (cnt, prog[ip].reg, 0, 0);
-                    runthread (rdy, ip + 1, sp, cap, cnt);
+                    cnt = ptrvec_copy_set (th.cnt, prog[th.ip].reg, 0, 0);
+                    rdyepsilon (rdy, th.ip + 1, sp, th.cap, cnt);
                     break;
                 case vmcode::ISPLIT:
-                    {
-                        int reg = prog[ip].reg;
-                        int n1 = prog[ip].n1;
-                        int n2 = prog[ip].n2;
-                        int n = (*cnt)[reg] + 1;
-                        run->at (th).counter = cnt = ptrvec_copy_set (cnt, reg, n, 0);
-                        if (n <= n1)
-                            runthread (rdy, ip + 1, sp, cap, cnt);
-                        else if (n2 == -1 || n <= n2) {
-                            runthread (rdy, a0 + ip + 1, sp, cap, cnt);
-                            runthread (rdy, a1 + ip + 1, sp, cap, cnt);
-                        }
+                    n = th.cnt->at (prog[th.ip].reg) + 1;
+                    cnt = ptrvec_copy_set (th.cnt, prog[th.ip].reg, n, 0);
+                    if (n <= prog[th.ip].n1)
+                        rdyepsilon (rdy, th.ip + 1, sp, th.cap, cnt);
+                    else if (prog[th.ip].n2 == -1 || n <= prog[th.ip].n2) {
+                        rdyepsilon (rdy, a0 + th.ip + 1, sp, th.cap, cnt);
+                        rdyepsilon (rdy, a1 + th.ip + 1, sp, th.cap, cnt);
                     }
                     break;
                 default:
