@@ -29,6 +29,7 @@ struct vmthread {
     std::wstring::size_type sp;
     vmcap_ptr cap;
     vmcnt_ptr cnt;
+
     vmcap_ptr setcap (std::size_t const i, std::wstring::size_type const sp) const
     {
         vmcap_ptr u = std::make_shared<vmcapture> (cap->begin (), cap->end ());
@@ -37,6 +38,7 @@ struct vmthread {
         (*u)[i] = sp;
         return u;
     }
+
     vmcnt_ptr setcnt (std::size_t const i, int const c) const
     {
         vmcnt_ptr u = std::make_shared<std::vector<int>> (cnt->begin (), cnt->end ());
@@ -67,10 +69,10 @@ private:
     bool incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>> const& cclass) const;
     std::size_t check_backref (std::wstring const& str,
         std::wstring::size_type const sp, vmcap_ptr const& cap, int const n);
-    void addthread (thread_que* const rdy, std::size_t const ip,
-        std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt);
-    void addepsilon (thread_que* const rdy, std::size_t const ip,
-        std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt);
+    void addthread (thread_que& rdy, std::size_t const ip,
+        std::wstring::size_type const sp, vmcap_ptr const cap, vmcnt_ptr const cnt);
+    void addepsilon (thread_que& rdy, std::size_t const ip,
+        std::wstring::size_type const sp, vmcap_ptr const cap, vmcnt_ptr const cnt);
 };
 
 bool vmengine::isword (wchar_t const c) const
@@ -101,20 +103,20 @@ bool vmengine::incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>> c
     return false;
 }
 
-void vmengine::addthread (vmengine::thread_que* const rdy, std::size_t const ip,
-    std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt)
+void vmengine::addthread (vmengine::thread_que& rdy, std::size_t const ip,
+    std::wstring::size_type const sp, vmcap_ptr const cap, vmcnt_ptr const cnt)
 {
-    for (auto th : *rdy)
+    for (auto th : rdy)
         if (th.ip == ip && th.sp == sp) {
             th.cap = cap;
             th.cnt = cnt;
             return;
         }
-    rdy->push_back (vmthread{ip, sp, cap, cnt});
+    rdy.push_back (vmthread{ip, sp, cap, cnt});
 }
 
-void vmengine::addepsilon (vmengine::thread_que* const rdy, std::size_t const ip,
-    std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt)
+void vmengine::addepsilon (vmengine::thread_que& rdy, std::size_t const ip,
+    std::wstring::size_type const sp, vmcap_ptr const cap, vmcnt_ptr const cnt)
 {
     mepsilon = true;
     addthread (rdy, ip, sp, cap, cnt);
@@ -159,14 +161,14 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
     std::size_t const start, std::wstring::size_type const pos)
 {
     std::wstring::size_type match = std::wstring::npos;
-    thread_que* run = new thread_que;
-    thread_que* rdy = new thread_que;
+    thread_que run;
+    thread_que rdy;
     addthread (run, start, pos, cap0, cnt0);
     for (std::wstring::size_type sp = pos; ; ++sp) {
         mepsilon = true;
         while (mepsilon) {
             mepsilon = false;
-            for (auto const th : *run) {
+            for (auto const th : run) {
                 vmcap_ptr cap;
                 vmcnt_ptr cnt;
                 std::wstring::size_type submatch;
@@ -266,13 +268,11 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                 }
             }
             std::swap (run, rdy);
-            rdy->clear ();
+            rdy.clear ();
         }
         if (sp >= str.size ())
             break;
     }
-    delete run;
-    delete rdy;
     return match;
 }
 
