@@ -19,15 +19,17 @@ SYNOPSYS
 
         t42::wregex re (L"a(.*)c");     // pattern
         std::wstring str (L"abcdcecf"); // target string
-        std::vector<int> cap;           // capture position list
+        std::vector<std::wstring::size_type> cap; // capture position list
         int rc = re.exec (str, cap, 0); // match from &str[0] with re
-        if (rc >= 0) {                  // match &str[0] to &str[rc - 1]
+        if (rc != std::wstring::npos) { // match &str[0] to &str[rc - 1]
             // $0 entire matched slice
             std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
-            // $1 first captured group
-            std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
             std::wcout << "m0 " << m0 << std::endl;
-            std::wcout << "m1 " << m1 << std::endl;
+            // $1 first captured group
+            if (cap[2] != std::wstring::npos && cap[3] != std::wstring::npos) {
+                std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+                std::wcout << "m1 " << m1 << std::endl;
+            }
         }
         else {
             std::wcout << "not ok" << std::endl;

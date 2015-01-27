@@ -45,8 +45,8 @@ void test1 (test::simple& ts)
 {
     t42::wregex re (L"a(.*)c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 7, L"qr/a(.*)c/ =~ \"abcdcec\"_\"f\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -58,8 +58,8 @@ void test2 (test::simple& ts)
 {
     t42::wregex re (L"a(.*?)c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 3, L"qr/a(.*?)c/ =~ \"abc\"_\"dcecf\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -71,8 +71,8 @@ void test3 (test::simple& ts)
 {
     t42::wregex re (L"a(.+)c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 7, L"qr/a(.+)c/ =~ \"abcdcec\"_\"f\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -84,8 +84,8 @@ void test4 (test::simple& ts)
 {
     t42::wregex re (L"a(.+?)c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 3, L"qr/a(.+?)c/ =~ \"abc\"_\"dcecf\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -97,8 +97,8 @@ void test5 (test::simple& ts)
 {
     t42::wregex re (L"a(.*)c");
     std::wstring str (L"acdxexf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 2, L"qr/a(.*)c/ =~ \"ab\"_\"cdcecf\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -110,17 +110,17 @@ void test6 (test::simple& ts)
 {
     t42::wregex re (L"a(.+)c");
     std::wstring str (L"acdxexf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
-    ts.ok (rc < 0, L"qr/a(.+)c/ !~ \"acdxexf\"");
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
+    ts.ok (rc == std::wstring::npos, L"qr/a(.+)c/ !~ \"acdxexf\"");
 }
 
 void test7 (test::simple& ts)
 {
     t42::wregex re (L"a(.?)c");
     std::wstring str (L"acdxexf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 2, L"qr/a(.?)c/ =~ \"ab\"_\"cdcecf\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -132,8 +132,8 @@ void test8 (test::simple& ts)
 {
     t42::wregex re (L"\\Aa(b)c\\z");
     std::wstring str (L"abc");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 3, L"qr/\\Aa(b)c\\z/ =~ \"abc\"_");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -141,16 +141,16 @@ void test8 (test::simple& ts)
     ts.ok (m1 == L"b", L"$1 == \"b\"");
 
     std::wstring str1 (L"abc def");
-    int rc1 = re.exec (str1, cap, 0);
-    ts.ok (rc1 < 0, L"qr/\\Aa(b)c\\z/ !~ \"abc def\"");
+    std::wstring::size_type rc1 = re.exec (str1, cap, 0);
+    ts.ok (rc1 == std::wstring::npos, L"qr/\\Aa(b)c\\z/ !~ \"abc def\"");
 }
 
 void test9 (test::simple& ts)
 {
     t42::wregex re (L".*^a(b)c$");
     std::wstring str (L"a\nabc\nd\n");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 5, L"qr/.*^a(b)c$/ =~ \"a\\nabc\"_\"\\nd\\n\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -162,8 +162,8 @@ void test10 (test::simple& ts)
 {
     t42::wregex re (L".*\\b(abc\\B..)");
     std::wstring str (L"Aabcde abc abcfghi");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 16, L"qr/.*\\b(abc\\B..)/ =~ \"Aabcde abc abcfg\"_\"hi\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -175,8 +175,8 @@ void test11g (test::simple& ts)
 {
     t42::wregex re (L".*([0-9]+(?:[.][0-9]*)?)");
     std::wstring str (L"number 3.1415 is the pi");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 13, L"qr/.*([0-9]+(?:[.][0-9]*)?)/ =~ \"number 3.1415\"_\" is the pi\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -188,8 +188,8 @@ void test11 (test::simple& ts)
 {
     t42::wregex re (L".*?([0-9]+(?:[.][0-9]*)?)");
     std::wstring str (L"number 3.1415 is the pi");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 13, L"qr/.*?([0-9]+(?:[.][0-9]*)?)/ =~ \"number 3.1415\"_\" is the pi\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -201,8 +201,8 @@ void test12 (test::simple& ts)
 {
     t42::wregex re (L"[^0-9]*([^.]+(?:[.][0-9]*)?)");
     std::wstring str (L"number 3.1415 is the pi");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 13, L"qr/[^0-9]*([^.]+(?:[.][0-9]*)?)/ =~ \"number 3.1415\"_\" is the pi\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -214,8 +214,8 @@ void test13 (test::simple& ts)
 {
     t42::wregex re (L"a(.{2,8})c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 7, L"qr/a(.{2,8})c/ =~ \"abcdcec\"_\"f\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -223,20 +223,20 @@ void test13 (test::simple& ts)
     ts.ok (m1 == L"bcdce", L"$1 == \"bcdce\"");
 
     std::wstring str2 (L"a1cdxexf");
-    int rc2 = re.exec (str2, cap, 0);
-    ts.ok (rc2 < 0, L"qr/a(.{2,8})c/ !~ \"a1cdxexf\"");
+    std::wstring::size_type rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 == std::wstring::npos, L"qr/a(.{2,8})c/ !~ \"a1cdxexf\"");
 
     std::wstring str3 (L"a123456789c");
-    int rc3 = re.exec (str3, cap, 0);
-    ts.ok (rc3 < 0, L"qr/a(.{2,8})c/ !~ \"a123456789c\"");
+    std::wstring::size_type rc3 = re.exec (str3, cap, 0);
+    ts.ok (rc3 == std::wstring::npos, L"qr/a(.{2,8})c/ !~ \"a123456789c\"");
 }
 
 void test14 (test::simple& ts)
 {
     t42::wregex re (L"a(.{2,8}?)c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 5, L"qr/a(.{2,8}?)c/ =~ \"abcdc\"_\"ecf\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -244,20 +244,20 @@ void test14 (test::simple& ts)
     ts.ok (m1 == L"bcd", L"$1 == \"bcd\"");
 
     std::wstring str2 (L"a1cdxexf");
-    int rc2 = re.exec (str2, cap, 0);
-    ts.ok (rc2 < 0, L"qr/a(.{2,8}?)c/ !~ \"a1cdxexf\"");
+    std::wstring::size_type rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 == std::wstring::npos, L"qr/a(.{2,8}?)c/ !~ \"a1cdxexf\"");
 
     std::wstring str3 (L"a123456789c");
-    int rc3 = re.exec (str3, cap, 0);
-    ts.ok (rc3 < 0, L"qr/a(.{2,8}?)c/ !~ \"a123456789c\"");
+    std::wstring::size_type rc3 = re.exec (str3, cap, 0);
+    ts.ok (rc3 == std::wstring::npos, L"qr/a(.{2,8}?)c/ !~ \"a123456789c\"");
 }
 
 void test15 (test::simple& ts)
 {
     t42::wregex re (L"(.*?)\\b((?:[A-Z][a-z]{1,16}){2,4})\\b");
     std::wstring str (L"wiki has the FrontPage.");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 22, L"qr/(.*?)\\b((?:[A-Z][a-z]{1,16}){2,4})\\b/ =~ \"wiki has the FrontPage\"_\".\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -267,16 +267,16 @@ void test15 (test::simple& ts)
     ts.ok (m2 == L"FrontPage", L"$2 == \"FrontPage\"");
 
     std::wstring str2 (L"wiki has the Frontpage.");
-    int rc2 = re.exec (str2, cap, 0);
-    ts.ok (rc2 < 0, L"qr/(.*?)\\b((?:[A-Z][a-z]{1,16}){2,4})\\b/ !~ \"wiki has the Frontpage.\"");
+    std::wstring::size_type rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 == std::wstring::npos, L"qr/(.*?)\\b((?:[A-Z][a-z]{1,16}){2,4})\\b/ !~ \"wiki has the Frontpage.\"");
 }
 
 void test16 (test::simple& ts)
 {
     t42::wregex re (L"a(.{2,})c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 7, L"qr/a(.{2,})c/ =~ \"abcdcec\"_\"f\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -284,11 +284,11 @@ void test16 (test::simple& ts)
     ts.ok (m1 == L"bcdce", L"$1 == \"bcdce\"");
 
     std::wstring str2 (L"a1cdxexf");
-    int rc2 = re.exec (str2, cap, 0);
-    ts.ok (rc2 < 0, L"qr/a(.{2,})c/ !~ \"a1cdxexf\"");
+    std::wstring::size_type rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 == std::wstring::npos, L"qr/a(.{2,})c/ !~ \"a1cdxexf\"");
 
     std::wstring str3 (L"a123456789c");
-    int rc3 = re.exec (str3, cap, 0);
+    std::wstring::size_type rc3 = re.exec (str3, cap, 0);
     ts.ok (rc3 == 11, L"qr/a(.{2,})c/ =~ \"a123456789c\"_");
 }
 
@@ -296,8 +296,8 @@ void test17 (test::simple& ts)
 {
     t42::wregex re (L"a(.{2,}?)c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 5, L"qr/a(.{2,}?)c/ =~ \"abcdc\"_\"ecf\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -305,11 +305,11 @@ void test17 (test::simple& ts)
     ts.ok (m1 == L"bcd", L"$1 == \"bcd\"");
 
     std::wstring str2 (L"a1cdxexf");
-    int rc2 = re.exec (str2, cap, 0);
-    ts.ok (rc2 < 0, L"qr/a(.{2,}?)c/ !~ \"a1cdxexf\"");
+    std::wstring::size_type rc2 = re.exec (str2, cap, 0);
+    ts.ok (rc2 == std::wstring::npos, L"qr/a(.{2,}?)c/ !~ \"a1cdxexf\"");
 
     std::wstring str3 (L"a123456789c");
-    int rc3 = re.exec (str3, cap, 0);
+    std::wstring::size_type rc3 = re.exec (str3, cap, 0);
     ts.ok (rc3 == 11, L"qr/a(.{2,}?)c/ !~ \"a123456789c\"_");
 }
 
@@ -317,8 +317,8 @@ void test18 (test::simple& ts)
 {
     t42::wregex re (L"a(.|)c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 3, L"qr/a(.|)c/ =~ \"abc\"_\"dcecf\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -326,7 +326,7 @@ void test18 (test::simple& ts)
     ts.ok (m1 == L"b", L"$1 == \"b\"");
 
     std::wstring str2 (L"acdcecf");
-    int rc2 = re.exec (str2, cap, 0);
+    std::wstring::size_type rc2 = re.exec (str2, cap, 0);
     ts.ok (rc2 == 2, L"qr/a(.|)c/ =~ \"ac\"_\"dcecf\"");
     m0.assign (str2.begin () + cap[0], str2.begin () + cap[1]);
     m1.assign (str2.begin () + cap[2], str2.begin () + cap[3]);
@@ -338,8 +338,8 @@ void test19 (test::simple& ts)
 {
     t42::wregex re (L"a(|.)c");
     std::wstring str (L"abcdcecf");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 3, L"qr/a(|.)c/ =~ \"abc\"_\"dcecf\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
@@ -347,7 +347,7 @@ void test19 (test::simple& ts)
     ts.ok (m1 == L"b", L"$1 == \"b\"");
 
     std::wstring str2 (L"acdcecf");
-    int rc2 = re.exec (str2, cap, 0);
+    std::wstring::size_type rc2 = re.exec (str2, cap, 0);
     ts.ok (rc2 == 2, L"qr/a(|.)c/ =~ \"ac\"_\"dcecf\"");
     m0.assign (str2.begin () + cap[0], str2.begin () + cap[1]);
     m1.assign (str2.begin () + cap[2], str2.begin () + cap[3]);
@@ -359,8 +359,8 @@ void test20 (test::simple& ts)
 {
     t42::wregex re (L"(.*?)(<([a-z]+)>.*?</\\3>)");
     std::wstring str (L"a b <strong>c <em>d</em> f</strong> g");
-    std::vector<int> cap;
-    int rc = re.exec (str, cap, 0);
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
     ts.ok (rc == 35, L"qr/(.*?)(<([a-z]+)>.*?</\\3>)/ =~ \"a b <strong>c <em>d</em> f</strong>\"_\" g\"");
     std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
     std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);

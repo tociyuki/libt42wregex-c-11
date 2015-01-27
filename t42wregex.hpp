@@ -51,10 +51,10 @@ class regex_error {};
 
 class wregex {
 public:
-    enum {notmatch = -1};
     wregex (std::wstring s);
-    int exec (std::wstring str, std::vector<int>& capture,
-        std::wstring::size_type const pos);
+    std::wstring::size_type exec (std::wstring const str,
+        std::vector<std::wstring::size_type>& capture,
+        std::wstring::size_type const pos) const;
     std::vector<wpike::vmcode> get_prog() { return prog; }
 private:
     std::vector<wpike::vmcode> prog;
