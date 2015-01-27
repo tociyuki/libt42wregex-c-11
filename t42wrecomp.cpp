@@ -235,9 +235,9 @@ bool vmcompiler::compile_cclass (std::vector<vmcode>& prog)
         }
         else if (L']' == mpos[1])    // L"[a-]" trick
             spanstr.push_back (*mpos++);
-        else {  // in here, L"[*--]" != L"[*+,-]", it is error.
+        else {  // Open Group requires L"[%--]" == L"[%-\\-]"
             ++mpos;     // skip L'-'
-            if (L'-' == *mpos || ! compile_char (last))
+            if ((L'-' == *mpos && L']' != mpos[1]) || ! compile_char (last))
                 return false;
             spanstr.pop_back ();
             if (spanstr.size () > 0)

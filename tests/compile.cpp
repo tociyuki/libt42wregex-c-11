@@ -565,6 +565,18 @@ struct testspec {
      L"cclass \"-\" 'a'-'z' \"-\"\n"
      L"match\n"},
 
+    /*
+     * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html
+     *
+     * 9.3.5 RE Bracket Expression
+     *
+     *   7. the expression "[%--]" matches
+     *      any of the characters between '%' and '-'
+     */
+    {L"[%--]",
+     L"cclass '%'-'-'\n"
+     L"match\n"},
+
     {L"[[]",
      L"cclass \"[\"\n"
      L"match\n"},
