@@ -178,12 +178,6 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                     continue;
                 }
                 vmcode const op = prog[th.ip];
-                if (vmcode::MATCH == op.opcode) {
-                    match = th.sp;
-                    cap0 = th.setcap (1, th.sp);
-                    cnt0 = th.cnt;
-                    break;
-                }
                 switch (op.opcode) {
                 case vmcode::CHAR:
                     if (sp < str.size () && str[sp] == op.ch)
@@ -234,6 +228,11 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                     cap = th.setcap (op.addr0, sp);
                     addepsilon (rdy, th.ip + 1, sp, cap, th.cnt);
                     break;
+                case vmcode::MATCH:
+                    match = th.sp;
+                    cap0 = th.setcap (1, th.sp);
+                    cnt0 = th.cnt;
+                    goto cutoff_lower_order_threads;
                 case vmcode::JMP:
                     addepsilon (rdy, op.addr0 + th.ip + 1, sp, th.cap, th.cnt);
                     break;
@@ -267,6 +266,7 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                     throw "unknown vmcode operation. compile error?";
                 }
             }
+        cutoff_lower_order_threads:
             std::swap (run, rdy);
             rdy.clear ();
         }
