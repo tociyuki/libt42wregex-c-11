@@ -17,7 +17,7 @@ struct vmspan {
         str.push_back (a);
         str.push_back (b);
     }
-    bool member (wchar_t const c);
+    bool member (wchar_t const c) const;
 };
 
 struct vmcode {

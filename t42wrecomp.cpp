@@ -131,8 +131,8 @@ bool vmcompiler::compile_interval (std::vector<vmcode>& lhs)
     bool const greedy = *mpos != L'\x3f';
     if (! greedy)
         ++mpos;
-    int lhs_size = lhs.size ();
-    int reg = mreg++;
+    int const lhs_size = lhs.size ();
+    int const reg = mreg++;
     if (greedy)
         lhs.insert (lhs.begin (), vmcode (vmcode::ISPLIT, 0, lhs_size + 1, reg, n1, n2));
     else
