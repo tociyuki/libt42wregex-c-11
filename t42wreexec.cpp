@@ -20,33 +20,38 @@ bool vmspan::member (wchar_t const c) const
     return false;
 }
 
-typedef std::shared_ptr<std::vector<std::wstring::size_type>> cap_ptr;
-typedef std::shared_ptr<std::vector<int>> cnt_ptr;
+typedef std::vector<std::wstring::size_type> vmcapture;
+typedef std::shared_ptr<vmcapture> vmcap_ptr;
+typedef std::shared_ptr<std::vector<int>> vmcnt_ptr;
 
 struct vmthread {
     std::size_t ip;
     std::wstring::size_type sp;
-    cap_ptr cap;
-    cnt_ptr cnt;
+    vmcap_ptr cap;
+    vmcnt_ptr cnt;
 };
 
 class vmengine {
 public:
+    enum { PROGSTART = 0 };
     std::wstring::size_type exec (std::vector<vmcode> const& prog,
-        std::wstring const& str, std::vector<std::wstring::size_type>& capture,
+        std::wstring const& str, vmcapture& capture,
         std::wstring::size_type const pos);
 private:
     typedef std::vector<vmthread> thread_que;
     bool mepsilon;
+    std::wstring::size_type advance (std::vector<vmcode> const& prog,
+        std::wstring const& str, vmcapture& capture,
+        std::size_t const start, std::wstring::size_type const pos);
     bool iswordboundary (std::wstring const& str, std::wstring::size_type const sp) const;
     bool isword (wchar_t const c) const;
     bool incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>> const& cclass) const;
     std::size_t check_backref (std::wstring const& str,
-        std::wstring::size_type const sp, cap_ptr const& cap, int const n);
+        std::wstring::size_type const sp, vmcap_ptr const& cap, int const n);
     void addthread (thread_que* const rdy, std::size_t const ip,
-        std::wstring::size_type const sp, cap_ptr const& cap, cnt_ptr const& cnt);
+        std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt);
     void addepsilon (thread_que* const rdy, std::size_t const ip,
-        std::wstring::size_type const sp, cap_ptr const& cap, cnt_ptr const& cnt);
+        std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt);
     template<typename T>
     std::shared_ptr<std::vector<T>> ptrvec_copy_set(
         std::shared_ptr<std::vector<T>> v, std::size_t i, T x, T x0);
@@ -80,7 +85,7 @@ bool vmengine::incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>> c
 }
 
 void vmengine::addthread (vmengine::thread_que* const rdy, std::size_t const ip,
-    std::wstring::size_type const sp, cap_ptr const& cap, cnt_ptr const& cnt)
+    std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt)
 {
     for (auto th : *rdy)
         if (th.ip == ip && th.sp == sp) {
@@ -92,7 +97,7 @@ void vmengine::addthread (vmengine::thread_que* const rdy, std::size_t const ip,
 }
 
 void vmengine::addepsilon (vmengine::thread_que* const rdy, std::size_t const ip,
-    std::wstring::size_type const sp, cap_ptr const& cap, cnt_ptr const& cnt)
+    std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt)
 {
     mepsilon = true;
     addthread (rdy, ip, sp, cap, cnt);
@@ -110,7 +115,7 @@ std::shared_ptr<std::vector<T>> vmengine::ptrvec_copy_set(
 }
 
 std::size_t vmengine::check_backref (std::wstring const& str,
-    std::wstring::size_type const sp, cap_ptr const& cap, int const n)
+    std::wstring::size_type const sp, vmcap_ptr const& cap, int const n)
 {
     if (sp >= str.size () || n < 0 || n * 2 + 1 >= cap->size ())
         return 0;
@@ -123,25 +128,31 @@ std::size_t vmengine::check_backref (std::wstring const& str,
 }
 
 std::wstring::size_type vmengine::exec (std::vector<vmcode> const& prog,
-    std::wstring const& str, std::vector<std::wstring::size_type>& capture,
-    std::wstring::size_type const pos)
+    std::wstring const& str, vmcapture& capture, std::wstring::size_type const pos)
 {
-    enum { PROGSTART = 0 };
+    capture.clear ();
+    capture.push_back (pos);
+    capture.push_back (pos);
+    return advance (prog, str, capture, PROGSTART, pos);
+}
+
+std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
+    std::wstring const& str, vmcapture& capture,
+    std::size_t const start, std::wstring::size_type const pos)
+{
     std::wstring::size_type match = std::wstring::npos;
     thread_que* run = new thread_que;
     thread_que* rdy = new thread_que;
-    cap_ptr cap0 = std::make_shared<std::vector<std::wstring::size_type>> ();
-    cap0->push_back (pos);
-    cap0->push_back (pos);
-    cnt_ptr cnt0 = std::make_shared<std::vector<int>> ();
+    vmcap_ptr cap0 = std::make_shared<vmcapture> (capture.begin (), capture.end ());
+    vmcnt_ptr cnt0 = std::make_shared<std::vector<int>> ();
     addthread (run, PROGSTART, pos, cap0, cnt0);
     for (std::wstring::size_type sp = pos; ; ++sp) {
         mepsilon = true;
         while (mepsilon) {
             mepsilon = false;
             for (auto const th : *run) {
-                cap_ptr cap;
-                cnt_ptr cnt;
+                vmcap_ptr cap;
+                vmcnt_ptr cnt;
                 int n;
                 if (sp < th.sp) {
                     addthread (rdy, th.ip, th.sp, th.cap, th.cnt);
