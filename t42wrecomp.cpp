@@ -69,10 +69,9 @@ bool vmcompiler::compile_exp (std::vector<vmcode>& prog)
 
 bool vmcompiler::compile_cat (std::vector<vmcode>& prog)
 {
-    while (L'|' != *mpos && L')' != *mpos && L'\0' != *mpos) {
+    while (L'|' != *mpos && L')' != *mpos && L'\0' != *mpos)
         if (! compile_term (prog))
             return false;
-    }
     return true;
 }
 

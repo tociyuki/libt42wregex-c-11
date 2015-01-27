@@ -29,6 +29,22 @@ struct vmthread {
     std::wstring::size_type sp;
     vmcap_ptr cap;
     vmcnt_ptr cnt;
+    vmcap_ptr setcap (std::size_t const i, std::wstring::size_type const sp) const
+    {
+        vmcap_ptr u = std::make_shared<vmcapture> (cap->begin (), cap->end ());
+        if (u->size () < i + 1)
+            u->resize (i + 1, std::wstring::npos);
+        (*u)[i] = sp;
+        return u;
+    }
+    vmcnt_ptr setcnt (std::size_t const i, int const c) const
+    {
+        vmcnt_ptr u = std::make_shared<std::vector<int>> (cnt->begin (), cnt->end ());
+        if (u->size () < i + 1)
+            u->resize (i + 1, 0);
+        (*u)[i] = c;
+        return u;
+    }
 };
 
 class vmengine {
@@ -55,9 +71,6 @@ private:
         std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt);
     void addepsilon (thread_que* const rdy, std::size_t const ip,
         std::wstring::size_type const sp, vmcap_ptr const& cap, vmcnt_ptr const& cnt);
-    template<typename T>
-    std::shared_ptr<std::vector<T>> ptrvec_copy_set(
-        std::shared_ptr<std::vector<T>> v, std::size_t i, T x, T x0);
 };
 
 bool vmengine::isword (wchar_t const c) const
@@ -105,17 +118,6 @@ void vmengine::addepsilon (vmengine::thread_que* const rdy, std::size_t const ip
 {
     mepsilon = true;
     addthread (rdy, ip, sp, cap, cnt);
-}
-
-template<typename T>
-std::shared_ptr<std::vector<T>> vmengine::ptrvec_copy_set(
-    std::shared_ptr<std::vector<T>> v, std::size_t i, T x, T x0)
-{
-    auto u = std::make_shared<std::vector<T>> (v->begin (), v->end ());
-    if (i + 1 > u->size ())
-        u->resize (i + 1, x0);
-    (*u)[i] = x;
-    return u;
 }
 
 std::size_t vmengine::check_backref (std::wstring const& str,
@@ -176,7 +178,7 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                 vmcode const op = prog[th.ip];
                 if (vmcode::MATCH == op.opcode) {
                     match = th.sp;
-                    cap0 = ptrvec_copy_set (th.cap, 1, th.sp, std::wstring::npos);
+                    cap0 = th.setcap (1, th.sp);
                     cnt0 = th.cnt;
                     break;
                 }
@@ -227,7 +229,7 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                         addepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::SAVE:
-                    cap = ptrvec_copy_set (th.cap, op.addr0, sp, std::wstring::npos);
+                    cap = th.setcap (op.addr0, sp);
                     addepsilon (rdy, th.ip + 1, sp, cap, th.cnt);
                     break;
                 case vmcode::JMP:
@@ -238,12 +240,12 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                     addepsilon (rdy, op.addr1 + th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::RESET:
-                    cnt = ptrvec_copy_set (th.cnt, op.reg, 0, 0);
+                    cnt = th.setcnt (op.reg, 0);
                     addepsilon (rdy, th.ip + 1, sp, th.cap, cnt);
                     break;
                 case vmcode::ISPLIT:
                     n = th.cnt->at (op.reg) + 1;
-                    cnt = ptrvec_copy_set (th.cnt, op.reg, n, 0);
+                    cnt = th.setcnt (op.reg, n);
                     if (n <= op.n1)
                         addepsilon (rdy, th.ip + 1, sp, th.cap, cnt);
                     else if (op.n2 == -1 || n <= op.n2) {
