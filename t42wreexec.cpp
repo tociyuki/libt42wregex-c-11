@@ -41,6 +41,8 @@ private:
     bool iswordboundary (std::wstring const& str, std::wstring::size_type const sp) const;
     bool isword (wchar_t const c) const;
     bool incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>> const& cclass) const;
+    std::size_t check_backref (std::wstring const& str,
+        std::wstring::size_type const sp, cap_ptr const& cap, int const n);
     void addthread (thread_que* const rdy, std::size_t const ip,
         std::wstring::size_type const sp, cap_ptr const& cap, cnt_ptr const& cnt);
     void addepsilon (thread_que* const rdy, std::size_t const ip,
@@ -107,6 +109,19 @@ std::shared_ptr<std::vector<T>> vmengine::ptrvec_copy_set(
     return u;
 }
 
+std::size_t vmengine::check_backref (std::wstring const& str,
+    std::wstring::size_type const sp, cap_ptr const& cap, int const n)
+{
+    if (sp >= str.size () || n < 0 || n * 2 + 1 >= cap->size ())
+        return 0;
+    int const i1 = cap->at (n * 2);
+    int const i2 = cap->at (n * 2 + 1);
+    if (i1 < 0 || i1 >= i2)
+        return 0;
+    std::wstring gstr (str.begin () + i1, str.begin () + i2);
+    return str.compare (sp, i2 - i1, gstr) == 0 ? i2 - i1 : 0;
+}
+
 std::wstring::size_type vmengine::exec (std::vector<vmcode> const& prog,
     std::wstring const& str, std::vector<std::wstring::size_type>& capture,
     std::wstring::size_type const pos)
@@ -120,7 +135,6 @@ std::wstring::size_type vmengine::exec (std::vector<vmcode> const& prog,
     cap0->push_back (pos);
     cnt_ptr cnt0 = std::make_shared<std::vector<int>> ();
     addthread (run, PROGSTART, pos, cap0, cnt0);
-    rdy->clear ();
     for (std::wstring::size_type sp = pos; ; ++sp) {
         mepsilon = true;
         while (mepsilon) {
@@ -129,22 +143,21 @@ std::wstring::size_type vmengine::exec (std::vector<vmcode> const& prog,
                 cap_ptr cap;
                 cnt_ptr cnt;
                 int n;
-                int const a0 = prog.at (th.ip).addr0;
-                int const a1 = prog.at (th.ip).addr1;
                 if (sp < th.sp) {
                     addthread (rdy, th.ip, th.sp, th.cap, th.cnt);
                     continue;
                 }
-                if (vmcode::MATCH == prog[th.ip].opcode) {
+                vmcode const op = prog[th.ip];
+                if (vmcode::MATCH == op.opcode) {
                     match = th.sp;
                     cap = ptrvec_copy_set (th.cap, 1, th.sp, std::wstring::npos);
                     capture.clear ();
                     capture.insert (capture.begin (), cap->begin (), cap->end ());
                     break;
                 }
-                switch (prog[th.ip].opcode) {
+                switch (op.opcode) {
                 case vmcode::CHAR:
-                    if (sp < str.size () && str[sp] == prog[th.ip].ch)
+                    if (sp < str.size () && str[sp] == op.ch)
                         addthread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
                     break;
                 case vmcode::ANY:
@@ -152,23 +165,17 @@ std::wstring::size_type vmengine::exec (std::vector<vmcode> const& prog,
                         addthread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
                     break;
                 case vmcode::CCLASS:
-                    if (sp < str.size () && incclass (str[sp], prog[th.ip].span))
+                    if (sp < str.size () && incclass (str[sp], op.span))
                         addthread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
                     break;
                 case vmcode::NCCLASS:
-                    if (sp < str.size () && ! incclass (str[sp], prog[th.ip].span))
+                    if (sp < str.size () && ! incclass (str[sp], op.span))
                         addthread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
                     break;
                 case vmcode::BKREF:
-                    if (sp < str.size () && a0 * 2 + 1 < th.cap->size ()) {
-                        int const i1 = th.cap->at (a0 * 2);
-                        int const i2 = th.cap->at (a0 * 2 + 1);
-                        if (i1 < 0 || i1 >= i2)
-                            break;
-                        std::wstring gstr (str.begin () + i1, str.begin () + i2);
-                        if (str.compare (sp, i2 - i1, gstr) == 0)
-                            addthread (rdy, th.ip + 1, sp + (i2 - i1), th.cap, th.cnt);
-                    }
+                    n = check_backref (str, sp, th.cap, op.addr0);
+                    if (n > 0)
+                        addthread (rdy, th.ip + 1, sp + n, th.cap, th.cnt);
                     break;
                 case vmcode::BOL:
                     if (sp == 0 || str[sp - 1] == L'\n')
@@ -195,28 +202,28 @@ std::wstring::size_type vmengine::exec (std::vector<vmcode> const& prog,
                         addepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::SAVE:
-                    cap = ptrvec_copy_set (th.cap, a0, sp, std::wstring::npos);
+                    cap = ptrvec_copy_set (th.cap, op.addr0, sp, std::wstring::npos);
                     addepsilon (rdy, th.ip + 1, sp, cap, th.cnt);
                     break;
                 case vmcode::JMP:
-                    addepsilon (rdy, a0 + th.ip + 1, sp, th.cap, th.cnt);
+                    addepsilon (rdy, op.addr0 + th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::SPLIT:
-                    addepsilon (rdy, a0 + th.ip + 1, sp, th.cap, th.cnt);
-                    addepsilon (rdy, a1 + th.ip + 1, sp, th.cap, th.cnt);
+                    addepsilon (rdy, op.addr0 + th.ip + 1, sp, th.cap, th.cnt);
+                    addepsilon (rdy, op.addr1 + th.ip + 1, sp, th.cap, th.cnt);
                     break;
                 case vmcode::RESET:
-                    cnt = ptrvec_copy_set (th.cnt, prog[th.ip].reg, 0, 0);
+                    cnt = ptrvec_copy_set (th.cnt, op.reg, 0, 0);
                     addepsilon (rdy, th.ip + 1, sp, th.cap, cnt);
                     break;
                 case vmcode::ISPLIT:
-                    n = th.cnt->at (prog[th.ip].reg) + 1;
-                    cnt = ptrvec_copy_set (th.cnt, prog[th.ip].reg, n, 0);
-                    if (n <= prog[th.ip].n1)
+                    n = th.cnt->at (op.reg) + 1;
+                    cnt = ptrvec_copy_set (th.cnt, op.reg, n, 0);
+                    if (n <= op.n1)
                         addepsilon (rdy, th.ip + 1, sp, th.cap, cnt);
-                    else if (prog[th.ip].n2 == -1 || n <= prog[th.ip].n2) {
-                        addepsilon (rdy, a0 + th.ip + 1, sp, th.cap, cnt);
-                        addepsilon (rdy, a1 + th.ip + 1, sp, th.cap, cnt);
+                    else if (op.n2 == -1 || n <= op.n2) {
+                        addepsilon (rdy, op.addr0 + th.ip + 1, sp, th.cap, cnt);
+                        addepsilon (rdy, op.addr1 + th.ip + 1, sp, th.cap, cnt);
                     }
                     break;
                 default:
