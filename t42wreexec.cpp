@@ -21,8 +21,9 @@ bool vmspan::member (wchar_t const c) const
 }
 
 typedef std::vector<std::wstring::size_type> vmcapture;
+typedef std::vector<int> vmcounter;
 typedef std::shared_ptr<vmcapture> vmcap_ptr;
-typedef std::shared_ptr<std::vector<int>> vmcnt_ptr;
+typedef std::shared_ptr<vmcounter> vmcnt_ptr;
 
 struct vmthread {
     std::size_t ip;
@@ -41,13 +42,15 @@ struct vmthread {
 
     vmcnt_ptr setcnt (std::size_t const i, int const c) const
     {
-        vmcnt_ptr u = std::make_shared<std::vector<int>> (cnt->begin (), cnt->end ());
+        vmcnt_ptr u = std::make_shared<vmcounter> (cnt->begin (), cnt->end ());
         if (u->size () < i + 1)
             u->resize (i + 1, 0);
         (*u)[i] = c;
         return u;
     }
 };
+
+typedef std::vector<vmthread> vmthread_que;
 
 class vmengine {
 public:
@@ -56,23 +59,16 @@ public:
         std::wstring const& str, vmcapture& capture,
         std::wstring::size_type const pos);
 private:
-    typedef std::vector<vmthread> thread_que;
     bool mepsilon;
     std::wstring::size_type advance (std::vector<vmcode> const& prog,
-        std::wstring const& str, vmcap_ptr& cap, vmcnt_ptr& cnt,
-        std::size_t const start, std::wstring::size_type const pos);
-    std::wstring::size_type subadvance (std::vector<vmcode> const& prog,
-        std::wstring const& str, vmcap_ptr& cap, vmcnt_ptr& cnt,
-        std::size_t const ip, std::wstring::size_type const sp);
+        std::wstring const& str, vmthread& th0);
+    void addthread (vmthread_que& rdy, vmthread&& th);
+    void addepsilon (vmthread_que& rdy, vmthread&& th);
     bool iswordboundary (std::wstring const& str, std::wstring::size_type const sp) const;
     bool isword (wchar_t const c) const;
     bool incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>> const& cclass) const;
     std::size_t check_backref (std::wstring const& str,
-        std::wstring::size_type const sp, vmcap_ptr const& cap, int const n);
-    void addthread (thread_que& rdy, std::size_t const ip,
-        std::wstring::size_type const sp, vmcap_ptr const cap, vmcnt_ptr const cnt);
-    void addepsilon (thread_que& rdy, std::size_t const ip,
-        std::wstring::size_type const sp, vmcap_ptr const cap, vmcnt_ptr const cnt);
+        std::wstring::size_type const sp, vmcap_ptr const& cap, int const n) const;
 };
 
 bool vmengine::isword (wchar_t const c) const
@@ -103,27 +99,8 @@ bool vmengine::incclass (wchar_t const c, std::shared_ptr<std::vector<vmspan>> c
     return false;
 }
 
-void vmengine::addthread (vmengine::thread_que& rdy, std::size_t const ip,
-    std::wstring::size_type const sp, vmcap_ptr const cap, vmcnt_ptr const cnt)
-{
-    for (auto th : rdy)
-        if (th.ip == ip && th.sp == sp) {
-            th.cap = cap;
-            th.cnt = cnt;
-            return;
-        }
-    rdy.push_back (vmthread{ip, sp, cap, cnt});
-}
-
-void vmengine::addepsilon (vmengine::thread_que& rdy, std::size_t const ip,
-    std::wstring::size_type const sp, vmcap_ptr const cap, vmcnt_ptr const cnt)
-{
-    mepsilon = true;
-    addthread (rdy, ip, sp, cap, cnt);
-}
-
 std::size_t vmengine::check_backref (std::wstring const& str,
-    std::wstring::size_type const sp, vmcap_ptr const& cap, int const n)
+    std::wstring::size_type const sp, vmcap_ptr const& cap, int const n) const
 {
     if (sp >= str.size () || n < 0 || n * 2 + 1 >= cap->size ())
         return 0;
@@ -135,132 +112,140 @@ std::size_t vmengine::check_backref (std::wstring const& str,
     return str.compare (sp, i2 - i1, gstr) == 0 ? i2 - i1 : 0;
 }
 
+void vmengine::addthread (vmthread_que& rdy, vmthread&& th)
+{
+    for (auto already : rdy)
+        if (already.ip == th.ip && already.sp == th.sp) {
+            already.cap = th.cap;
+            already.cnt = th.cnt;
+            return;
+        }
+    rdy.push_back (std::move (th));
+}
+
+void vmengine::addepsilon (vmthread_que& rdy, vmthread&& th)
+{
+    mepsilon = true;
+    addthread (rdy, std::move (th));
+}
+
 std::wstring::size_type vmengine::exec (std::vector<vmcode> const& prog,
     std::wstring const& str, vmcapture& capture, std::wstring::size_type const pos)
 {
-    vmcap_ptr cap0 = std::make_shared<vmcapture> ();
-    vmcnt_ptr cnt0 = std::make_shared<std::vector<int>> ();
-    cap0->push_back (pos);
-    cap0->push_back (pos);
-    std::wstring::size_type idx = advance (prog, str, cap0, cnt0, PROGSTART, pos);
+    vmcap_ptr cap = std::make_shared<vmcapture> (2, pos);
+    vmcnt_ptr cnt = std::make_shared<vmcounter> ();
+    vmthread th{PROGSTART, pos, cap, cnt};
+    std::wstring::size_type idx = advance (prog, str, th);
     capture.clear ();
-    capture.insert (capture.begin (), cap0->begin (), cap0->end ());
+    capture.insert (capture.begin (), th.cap->begin (), th.cap->end ());
     return idx;
 }
 
-std::wstring::size_type vmengine::subadvance (std::vector<vmcode> const& prog,
-    std::wstring const& str, vmcap_ptr& cap, vmcnt_ptr& cnt,
-    std::size_t const ip, std::wstring::size_type const sp)
-{
-    vmengine sub;
-    return sub.advance (prog, str, cap, cnt, ip, sp);
-}
-
 std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
-    std::wstring const& str, vmcap_ptr& cap0, vmcnt_ptr& cnt0,
-    std::size_t const start, std::wstring::size_type const pos)
+    std::wstring const& str, vmthread& th0)
 {
     std::wstring::size_type match = std::wstring::npos;
-    thread_que run;
-    thread_que rdy;
-    addthread (run, start, pos, cap0, cnt0);
-    for (std::wstring::size_type sp = pos; ; ++sp) {
+    vmthread_que run;
+    vmthread_que rdy;
+    addthread (run, vmthread{th0.ip, th0.sp, th0.cap, th0.cnt});
+    for (std::wstring::size_type sp = th0.sp; ; ++sp) {
         mepsilon = true;
         while (mepsilon) {
             mepsilon = false;
-            for (auto const th : run) {
+            for (auto th : run) {
                 vmcap_ptr cap;
                 vmcnt_ptr cnt;
-                std::wstring::size_type submatch;
                 int n;
                 if (sp < th.sp) {
-                    addthread (rdy, th.ip, th.sp, th.cap, th.cnt);
+                    addthread (rdy, std::move (th));
                     continue;
                 }
                 vmcode const op = prog[th.ip];
                 switch (op.opcode) {
                 case vmcode::CHAR:
                     if (sp < str.size () && str[sp] == op.ch)
-                        addthread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
+                        addthread (rdy, vmthread{th.ip + 1, sp + 1, th.cap, th.cnt});
                     break;
                 case vmcode::ANY:
                     if (sp < str.size ())
-                        addthread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
+                        addthread (rdy, vmthread{th.ip + 1, sp + 1, th.cap, th.cnt});
                     break;
                 case vmcode::CCLASS:
                     if (sp < str.size () && incclass (str[sp], op.span))
-                        addthread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
+                        addthread (rdy, vmthread{th.ip + 1, sp + 1, th.cap, th.cnt});
                     break;
                 case vmcode::NCCLASS:
                     if (sp < str.size () && ! incclass (str[sp], op.span))
-                        addthread (rdy, th.ip + 1, sp + 1, th.cap, th.cnt);
+                        addthread (rdy, vmthread{th.ip + 1, sp + 1, th.cap, th.cnt});
                     break;
                 case vmcode::BKREF:
                     n = check_backref (str, sp, th.cap, op.addr0);
                     if (n > 0)
-                        addthread (rdy, th.ip + 1, sp + n, th.cap, th.cnt);
+                        addthread (rdy, vmthread{th.ip + 1, sp + n, th.cap, th.cnt});
                     break;
                 case vmcode::BOL:
                     if (sp == 0 || str[sp - 1] == L'\n')
-                        addepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
+                        addepsilon (rdy, vmthread{th.ip + 1, sp, th.cap, th.cnt});
                     break;
                 case vmcode::EOL:
                     if (sp >= str.size () || str[sp] == L'\n')
-                        addepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
+                        addepsilon (rdy, vmthread{th.ip + 1, sp, th.cap, th.cnt});
                     break;
                 case vmcode::BOS:
                     if (sp == 0)
-                        addepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
+                        addepsilon (rdy, vmthread{th.ip + 1, sp, th.cap, th.cnt});
                     break;
                 case vmcode::EOS:
                     if (sp >= str.size ())
-                        addepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
+                        addepsilon (rdy, vmthread{th.ip + 1, sp, th.cap, th.cnt});
                     break;
                 case vmcode::WORDB:
                     if (iswordboundary (str, sp))
-                        addepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
+                        addepsilon (rdy, vmthread{th.ip + 1, sp, th.cap, th.cnt});
                     break;
                 case vmcode::NWORDB:
                     if (! iswordboundary (str, sp))
-                        addepsilon (rdy, th.ip + 1, sp, th.cap, th.cnt);
+                        addepsilon (rdy, vmthread{th.ip + 1, sp, th.cap, th.cnt});
                     break;
                 case vmcode::SAVE:
                     cap = th.setcap (op.addr0, sp);
-                    addepsilon (rdy, th.ip + 1, sp, cap, th.cnt);
+                    addepsilon (rdy, vmthread{th.ip + 1, sp, cap, th.cnt});
                     break;
                 case vmcode::MATCH:
                     match = th.sp;
-                    cap0 = th.setcap (1, th.sp);
-                    cnt0 = th.cnt;
+                    th0.cap = th.setcap (1, th.sp);
+                    th0.cnt = th.cnt;
                     goto cutoff_lower_order_threads;
                 case vmcode::JMP:
-                    addepsilon (rdy, op.addr0 + th.ip + 1, sp, th.cap, th.cnt);
+                    addepsilon (rdy, vmthread{op.addr0 + th.ip + 1, sp, th.cap, th.cnt});
                     break;
                 case vmcode::SPLIT:
-                    addepsilon (rdy, op.addr0 + th.ip + 1, sp, th.cap, th.cnt);
-                    addepsilon (rdy, op.addr1 + th.ip + 1, sp, th.cap, th.cnt);
+                    addepsilon (rdy, vmthread{op.addr0 + th.ip + 1, sp, th.cap, th.cnt});
+                    addepsilon (rdy, vmthread{op.addr1 + th.ip + 1, sp, th.cap, th.cnt});
                     break;
                 case vmcode::RESET:
                     cnt = th.setcnt (op.reg, 0);
-                    addepsilon (rdy, th.ip + 1, sp, th.cap, cnt);
+                    addepsilon (rdy, vmthread{th.ip + 1, sp, th.cap, cnt});
                     break;
                 case vmcode::ISPLIT:
                     n = th.cnt->at (op.reg) + 1;
                     cnt = th.setcnt (op.reg, n);
                     if (n <= op.n1)
-                        addepsilon (rdy, th.ip + 1, sp, th.cap, cnt);
+                        addepsilon (rdy, vmthread{th.ip + 1, sp, th.cap, cnt});
                     else if (op.n2 == -1 || n <= op.n2) {
-                        addepsilon (rdy, op.addr0 + th.ip + 1, sp, th.cap, cnt);
-                        addepsilon (rdy, op.addr1 + th.ip + 1, sp, th.cap, cnt);
+                        addepsilon (rdy, vmthread{op.addr0 + th.ip + 1, sp, th.cap, cnt});
+                        addepsilon (rdy, vmthread{op.addr1 + th.ip + 1, sp, th.cap, cnt});
                     }
                     break;
                 case vmcode::LKAHEAD:
                 case vmcode::NLKAHEAD:
-                    cap = std::make_shared<vmcapture> (th.cap->begin (), th.cap->end ());
-                    cnt = std::make_shared<std::vector<int>> (th.cnt->begin (), th.cnt->end ());
-                    submatch = subadvance (prog, str, cap, cnt, op.addr0 + th.ip + 1, sp);
-                    if ((submatch == std::wstring::npos) ^ (op.opcode == vmcode::LKAHEAD))
-                        addepsilon (rdy, op.addr1 + th.ip + 1, sp, cap, cnt);
+                    {
+                        vmengine sub;
+                        vmthread th1{op.addr0 + th.ip + 1, sp, th.cap, th.cnt};
+                        std::wstring::size_type submatch = sub.advance (prog, str, th1);
+                        if ((submatch == std::wstring::npos) ^ (op.opcode == vmcode::LKAHEAD))
+                            addepsilon (rdy, vmthread{op.addr1 + th.ip + 1, sp, th1.cap, th1.cnt});
+                    }
                     break;
                 default:
                     throw "unknown vmcode operation. compile error?";
