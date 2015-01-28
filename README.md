@@ -97,6 +97,7 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
             / '\\n'             # new line       (\x0a)
             / '\\r'             # carrige return (\x0d)
             / '\\f'             # form feed      (\x0c)
+            / '\\v'             # virtical tab   (\x0b)
             / '\\a'             # alarm bell     (\x07)
             / '\\e'             # escape         (\x1b)
             / '\\' [0-7]([0-7][0-7]?)?      # byte character by octal digits

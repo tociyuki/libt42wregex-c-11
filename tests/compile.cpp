@@ -14,7 +14,7 @@ std::wstring esc (std::wstring const& s)
             t.push_back (c);
         else if (L'\t' == c)
             t += L"\\t";
-        else if (0x07 == c)
+        else if (L'\a' == c)
             t += L"\\a";
         else if (L'\f' == c)
             t += L"\\f";
@@ -22,6 +22,8 @@ std::wstring esc (std::wstring const& s)
             t += L"\\r";
         else if (L'\n' == c)
             t += L"\\n";
+        else if (L'\v' == c)
+            t += L"\\v";
         else if (0x1b == c)
             t += L"\\e";
         else if (0 <= c && c < 256) {
@@ -449,6 +451,10 @@ struct testspec {
 
     {L"\\r",
      L"char '\\r'\n"
+     L"match\n"},
+
+    {L"\\v",
+     L"char '\\v'\n"
      L"match\n"},
 
     {L"\\0a",

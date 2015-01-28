@@ -90,9 +90,8 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
             ++mpos;
             std::swap (a0, a1);
         }
-        if (L'+' == repetition) {
+        if (L'+' == repetition)
             lhs.push_back (vmcode (vmcode::SPLIT, a0, a1));
-        }
         else {
             lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, a0, a1));
             if (L'*' == repetition)
@@ -251,8 +250,8 @@ bool vmcompiler::compile_cclass (std::vector<vmcode>& prog)
 bool vmcompiler::compile_char (wchar_t& ch)
 {
     std::wstring::size_type idx;
-    static const std::wstring pat1 (L"aeftnr");
-    static const std::wstring val1 (L"\x07\x1b\f\t\n\r");
+    static const std::wstring pat1 (L"aeftnrv");
+    static const std::wstring val1 (L"\a\x1b\f\t\n\r\v");
     if ((L'\0' <= *mpos && *mpos <= '\x1f') || '\x7f' == *mpos)
         return false;
     ch = *mpos++;
