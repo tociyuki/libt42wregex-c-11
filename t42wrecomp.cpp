@@ -80,26 +80,23 @@ bool vmcompiler::compile_term (std::vector<vmcode>& prog)
     std::vector<vmcode> lhs;
     if (! compile_factor (lhs))
         return false;
-    int const lhs_size = lhs.size (); // must be int not std::size_t
     if (L'\x3f' == *mpos || L'*' == *mpos || L'+' == *mpos) {
-        wchar_t const quorifier = *mpos++;
+        wchar_t const repetition = *mpos++;
         bool const greedy = *mpos != L'\x3f';
-        if (! greedy)
+        int const n1 = static_cast<int> (lhs.size ());
+        int a0 = L'+' == repetition ? -(n1 + 1) : 0;
+        int a1 = L'*' == repetition ? n1 + 1 : L'?' == repetition ? n1 : 0;
+        if (! greedy) {
             ++mpos;
-        if (L'+' == quorifier) {
-            if (greedy)
-                lhs.push_back (vmcode (vmcode::SPLIT, -(lhs_size + 1), 0));
-            else
-                lhs.push_back (vmcode (vmcode::SPLIT, 0, -(lhs_size + 1)));
+            std::swap (a0, a1);
+        }
+        if (L'+' == repetition) {
+            lhs.push_back (vmcode (vmcode::SPLIT, a0, a1));
         }
         else {
-            int const disp = L'*' == quorifier ? lhs_size + 1 : lhs_size;
-            if (greedy)
-                lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, 0, disp));
-            else
-                lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, disp, 0));
-            if (L'*' == quorifier)
-                lhs.push_back (vmcode (vmcode::JMP, -(lhs_size + 2), 0));
+            lhs.insert (lhs.begin (), vmcode (vmcode::SPLIT, a0, a1));
+            if (L'*' == repetition)
+                lhs.push_back (vmcode (vmcode::JMP, -(n1 + 2), 0));
         }
     }
     else if (L'{' == *mpos && ! compile_interval (lhs))
