@@ -18,16 +18,16 @@ SYNOPSYS
         std::wcout.imbue (std::locale (""));
 
         t42::wregex re (L"a(.*)c");     // pattern
-        std::wstring str (L"abcdcecf"); // target string
-        std::vector<std::wstring::size_type> cap; // capture position list
-        int rc = re.exec (str, cap, 0); // match from &str[0] with re
-        if (rc != std::wstring::npos) { // match &str[0] to &str[rc - 1]
+        std::wstring s (L"abcdcecf");   // target string
+        t42::wregex::capture_list m;    // capture position list
+        int rc = re.exec (s, m, 0);     // match from &s[0] with re
+        if (rc != std::wstring::npos) { // match &s[0] to &s[rc - 1]
             // $0 entire matched slice
-            std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+            std::wstring m0(s.begin () + m[0], s.begin () + m[1]);
             std::wcout << "m0 " << m0 << std::endl;
             // $1 first captured group
-            if (cap[2] != std::wstring::npos && cap[3] != std::wstring::npos) {
-                std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+            if (m[2] != std::wstring::npos && m[3] != std::wstring::npos) {
+                std::wstring m1(s.begin () + m[2], s.begin () + m[3]);
                 std::wcout << "m1 " << m1 << std::endl;
             }
         }

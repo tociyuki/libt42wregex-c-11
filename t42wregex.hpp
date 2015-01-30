@@ -35,9 +35,10 @@ class regex_error {};
 
 class wregex {
 public:
+    typedef wpike::capture_list capture_list;
     wregex (std::wstring pat);
     std::wstring::size_type exec (std::wstring const s,
-        wpike::capture_list& m, std::wstring::size_type const sp) const;
+        capture_list& m, std::wstring::size_type const sp) const;
     wpike::program prog() { return e; }
 private:
     wpike::program e;
