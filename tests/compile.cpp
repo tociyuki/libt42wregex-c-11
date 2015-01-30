@@ -10,7 +10,9 @@ std::wstring esc (std::wstring const& s)
 {
     std::wstring t;
     for (auto c : s) {
-        if (0x20 <= c && c < 0x7e)
+        if (L'"' == c)
+            t += L"\\\"";
+        else if (0x20 <= c && c < 0x7e)
             t.push_back (c);
         else if (L'\t' == c)
             t += L"\\t";
@@ -47,112 +49,98 @@ std::wstring list (std::wstring const& s)
 {
     std::wstring t;
     t42::wregex re (s);
-    std::vector<t42::wpike::vmcode> prog = re.get_prog ();
-    for (auto x : prog)
-        switch (x.opcode) {
-        case t42::wpike::vmcode::MATCH:
+    t42::wpike::program e = re.prog ();
+    for (auto op : e)
+        switch (op.opcode) {
+        case t42::wpike::MATCH:
             t += L"match\n";
             break;
-        case t42::wpike::vmcode::SAVE:
+        case t42::wpike::SAVE:
             t += L"save ";
-            t += std::to_wstring (x.addr0);
+            t += std::to_wstring (op.x);
             t += L"\n";
             break;
-        case t42::wpike::vmcode::CHAR:
+        case t42::wpike::CHAR:
             t += L"char '";
-            t += esc (x.ch);
+            t += esc (op.s);
             t += L"'\n";
             break;
-        case t42::wpike::vmcode::ANY:
+        case t42::wpike::ANY:
             t += L"any\n";
             break;
-        case t42::wpike::vmcode::CCLASS:
-        case t42::wpike::vmcode::NCCLASS:
-            if (t42::wpike::vmcode::CCLASS == x.opcode)
-                t += L"cclass";
-            else
-                t += L"ncclass";
-            for (auto y : *(x.span)) {
-                if (t42::wpike::vmspan::RANGE == y.type) {
-                    t += L" '";
-                    t += esc (y.str[0]);
-                    t += L"'-'";
-                    t += esc (y.str[1]);
-                    t += L"'";
-                }
-                else {
-                    t += L" \"";
-                    t += esc (y.str);
-                    t += L"\"";
-                }
-            }
-            t += L"\n";
+        case t42::wpike::CCLASS:
+            t += L"cclass \"";
+            t += esc (op.s);
+            t += L"\"\n";
             break;
-        case t42::wpike::vmcode::BKREF:
+        case t42::wpike::NCCLASS:
+            t += L"ncclass \"";
+            t += esc (op.s);
+            t += L"\"\n";
+            break;
+        case t42::wpike::BKREF:
             t += L"bkref ";
-            t += std::to_wstring (x.addr0);
+            t += std::to_wstring (op.x);
+            t += L",%";
+            t += std::to_wstring (op.r);
             t += L"\n";
             break;
-        case t42::wpike::vmcode::BOL:
+        case t42::wpike::BOL:
             t += L"bol\n";
             break;
-        case t42::wpike::vmcode::EOL:
+        case t42::wpike::EOL:
             t += L"eol\n";
             break;
-        case t42::wpike::vmcode::BOS:
+        case t42::wpike::BOS:
             t += L"bos\n";
             break;
-        case t42::wpike::vmcode::EOS:
+        case t42::wpike::EOS:
             t += L"eos\n";
             break;
-        case t42::wpike::vmcode::WORDB:
+        case t42::wpike::WORDB:
             t += L"wordb\n";
             break;
-        case t42::wpike::vmcode::NWORDB:
+        case t42::wpike::NWORDB:
             t += L"nwordb\n";
             break;
-        case t42::wpike::vmcode::JMP:
+        case t42::wpike::JMP:
             t += L"jmp ";
-            t += std::to_wstring (x.addr0);
+            t += std::to_wstring (op.x);
             t += L"\n";
             break;
-        case t42::wpike::vmcode::SPLIT:
+        case t42::wpike::SPLIT:
             t += L"split ";
-            t += std::to_wstring (x.addr0);
+            t += std::to_wstring (op.x);
             t += L",";
-            t += std::to_wstring (x.addr1);
+            t += std::to_wstring (op.y);
             t += L"\n";
             break;
-        case t42::wpike::vmcode::LKAHEAD:
+        case t42::wpike::LKAHEAD:
             t += L"lkahead ";
-            t += std::to_wstring (x.addr0);
+            t += std::to_wstring (op.x);
             t += L",";
-            t += std::to_wstring (x.addr1);
+            t += std::to_wstring (op.y);
             t += L"\n";
             break;
-        case t42::wpike::vmcode::NLKAHEAD:
+        case t42::wpike::NLKAHEAD:
             t += L"nlkahead ";
-            t += std::to_wstring (x.addr0);
+            t += std::to_wstring (op.x);
             t += L",";
-            t += std::to_wstring (x.addr1);
+            t += std::to_wstring (op.y);
             t += L"\n";
             break;
-        case t42::wpike::vmcode::RESET:
-            t += L"reset %r";
-            t += std::to_wstring (x.reg);
+        case t42::wpike::RESET:
+            t += L"reset %";
+            t += std::to_wstring (op.r);
             t += L"\n";
             break;
-        case t42::wpike::vmcode::ISPLIT:
-            t += L"isplit ";
-            t += std::to_wstring (x.addr0);
+        case t42::wpike::REP:
+            t += L"rep ";
+            t += std::to_wstring (op.x);
             t += L",";
-            t += std::to_wstring (x.addr1);
-            t += L",%r";
-            t += std::to_wstring (x.reg);
-            t += L",$";
-            t += std::to_wstring (x.n1);
-            t += L",$";
-            t += std::to_wstring (x.n2);
+            t += std::to_wstring (op.y);
+            t += L",%";
+            t += std::to_wstring (op.r);
             t += L"\n";
             break;
         default:
@@ -311,73 +299,83 @@ struct testspec {
      L"match\n"},
 
     {L"a{0,3}",
-     L"reset %r0\n"
-     L"isplit 0,2,%r0,$0,$3\n"
+     L"reset %0\n"
+     L"rep 0,3,%0\n"
+     L"split 0,2\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"a{0,3}?",
-     L"reset %r0\n"
-     L"isplit 2,0,%r0,$0,$3\n"
+     L"reset %0\n"
+     L"rep 0,3,%0\n"
+     L"split 2,0\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"a{1,3}",
-     L"reset %r0\n"
-     L"isplit 0,2,%r0,$1,$3\n"
+     L"reset %0\n"
+     L"rep 1,3,%0\n"
+     L"split 0,2\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"a{1,3}?",
-     L"reset %r0\n"
-     L"isplit 2,0,%r0,$1,$3\n"
+     L"reset %0\n"
+     L"rep 1,3,%0\n"
+     L"split 2,0\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"a{2}",
-     L"reset %r0\n"
-     L"isplit 0,2,%r0,$2,$2\n"
+     L"reset %0\n"
+     L"rep 2,2,%0\n"
+     L"split 0,2\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"a{2}?",
-     L"reset %r0\n"
-     L"isplit 2,0,%r0,$2,$2\n"
+     L"reset %0\n"
+     L"rep 2,2,%0\n"
+     L"split 2,0\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"a{2,4}",
-     L"reset %r0\n"
-     L"isplit 0,2,%r0,$2,$4\n"
+     L"reset %0\n"
+     L"rep 2,4,%0\n"
+     L"split 0,2\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"a{2,4}?",
-     L"reset %r0\n"
-     L"isplit 2,0,%r0,$2,$4\n"
+     L"reset %0\n"
+     L"rep 2,4,%0\n"
+     L"split 2,0\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"a{2,}",
-     L"reset %r0\n"
-     L"isplit 0,2,%r0,$2,$-1\n"
+     L"reset %0\n"
+     L"rep 2,-1,%0\n"
+     L"split 0,2\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"a{2,}?",
-     L"reset %r0\n"
-     L"isplit 2,0,%r0,$2,$-1\n"
+     L"reset %0\n"
+     L"rep 2,-1,%0\n"
+     L"split 2,0\n"
      L"char 'a'\n"
-     L"jmp -3\n"
+     L"jmp -4\n"
      L"match\n"},
 
     {L"q{a}",
@@ -463,7 +461,8 @@ struct testspec {
      L"match\n"},
 
     {L"\\1a",
-     L"bkref 1\n"
+     L"reset %0\n"
+     L"bkref 1,%0\n"
      L"char 'a'\n"
      L"match\n"},
 
@@ -473,7 +472,8 @@ struct testspec {
      L"match\n"},
 
     {L"\\91",
-     L"bkref 9\n"
+     L"reset %0\n"
+     L"bkref 9,%0\n"
      L"char '1'\n"
      L"match\n"},
 
@@ -524,51 +524,51 @@ struct testspec {
      L"match\n"},
 
     {L"[a]",
-     L"cclass \"a\"\n"
+     L"cclass \"\\a\"\n"
      L"match\n"},
 
     {L"[abc]",
-     L"cclass \"abc\"\n"
+     L"cclass \"\\a\\b\\c\"\n"
      L"match\n"},
 
     {L"[a-z]",
-     L"cclass 'a'-'z'\n"
+     L"cclass \"\\a-\\z\"\n"
      L"match\n"},
 
     {L"[\\x30-\\x39]",
-     L"cclass '0'-'9'\n"
+     L"cclass \"\\0-\\9\"\n"
      L"match\n"},
 
     {L"[a\\]\\-z]",
-     L"cclass \"a]-z\"\n"
+     L"cclass \"\\a\\]\\-\\z\"\n"
      L"match\n"},
 
     {L"[ab-fg]",
-     L"cclass \"a\" 'b'-'f' \"g\"\n"
+     L"cclass \"\\a\\b-\\f\\g\"\n"
      L"match\n"},
 
     {L"[$^.?*+\\-()]",
-     L"cclass \"$^.?*+-()\"\n"
+     L"cclass \"\\$\\^\\.\\?\\*\\+\\-\\(\\)\"\n"
      L"match\n"},
 
     {L"[-]",
-     L"cclass \"-\"\n"
+     L"cclass \"\\-\"\n"
      L"match\n"},
 
     {L"[-a]",
-     L"cclass \"-a\"\n"
+     L"cclass \"\\-\\a\"\n"
      L"match\n"},
 
     {L"[a-]",
-     L"cclass \"a-\"\n"
+     L"cclass \"\\a\\-\"\n"
      L"match\n"},
 
     {L"[-a-]",
-     L"cclass \"-a-\"\n"
+     L"cclass \"\\-\\a\\-\"\n"
      L"match\n"},
 
     {L"[-a-z-]",
-     L"cclass \"-\" 'a'-'z' \"-\"\n"
+     L"cclass \"\\-\\a-\\z\\-\"\n"
      L"match\n"},
 
     /*
@@ -580,63 +580,63 @@ struct testspec {
      *      any of the characters between '%' and '-'
      */
     {L"[%--]",
-     L"cclass '%'-'-'\n"
+     L"cclass \"\\%-\\-\"\n"
      L"match\n"},
 
     {L"[[]",
-     L"cclass \"[\"\n"
+     L"cclass \"\\[\"\n"
      L"match\n"},
 
     {L"[]]",
-     L"cclass \"]\"\n"
+     L"cclass \"\\]\"\n"
      L"match\n"},
 
     {L"[^a]",
-     L"ncclass \"a\"\n"
+     L"ncclass \"\\a\"\n"
      L"match\n"},
 
     {L"[^abc]",
-     L"ncclass \"abc\"\n"
+     L"ncclass \"\\a\\b\\c\"\n"
      L"match\n"},
 
     {L"[^a-z]",
-     L"ncclass 'a'-'z'\n"
+     L"ncclass \"\\a-\\z\"\n"
      L"match\n"},
 
     {L"[^ab-fg]",
-     L"ncclass \"a\" 'b'-'f' \"g\"\n"
+     L"ncclass \"\\a\\b-\\f\\g\"\n"
      L"match\n"},
 
     {L"[^$^.?*+\\-()]",
-     L"ncclass \"$^.?*+-()\"\n"
+     L"ncclass \"\\$\\^\\.\\?\\*\\+\\-\\(\\)\"\n"
      L"match\n"},
 
     {L"[^-]",
-     L"ncclass \"-\"\n"
+     L"ncclass \"\\-\"\n"
      L"match\n"},
 
     {L"[^-a]",
-     L"ncclass \"-a\"\n"
+     L"ncclass \"\\-\\a\"\n"
      L"match\n"},
 
     {L"[^a-]",
-     L"ncclass \"a-\"\n"
+     L"ncclass \"\\a\\-\"\n"
      L"match\n"},
 
     {L"[^-a-]",
-     L"ncclass \"-a-\"\n"
+     L"ncclass \"\\-\\a\\-\"\n"
      L"match\n"},
 
     {L"[^-a-z-]",
-     L"ncclass \"-\" 'a'-'z' \"-\"\n"
+     L"ncclass \"\\-\\a-\\z\\-\"\n"
      L"match\n"},
 
     {L"[^[]",
-     L"ncclass \"[\"\n"
+     L"ncclass \"\\[\"\n"
      L"match\n"},
 
     {L"[^]]",
-     L"ncclass \"]\"\n"
+     L"ncclass \"\\]\"\n"
      L"match\n"},
 
     {L"a(?=b).",

@@ -3,47 +3,31 @@
 
 #include <vector>
 #include <string>
-#include <memory>
 
 namespace t42 {
 namespace wpike {
 
-struct vmspan {
-    enum { STR, RANGE } type;
-    std::wstring str;
-    vmspan (std::wstring a) : type (STR), str (a) { }
-    vmspan (wchar_t a, wchar_t b) : type (RANGE), str ()
-    {
-        str.push_back (a);
-        str.push_back (b);
-    }
-    bool member (wchar_t const c) const;
+enum operation {
+    MATCH, CHAR, ANY, CCLASS, NCCLASS, BKREF, // non-epsilon
+    BOL, EOL, BOS, EOS, WORDB, NWORDB, SAVE,  // epsilon
+    JMP, SPLIT, LKAHEAD, NLKAHEAD, RESET, REP // epsilon
 };
 
-struct vmcode {
-    enum operation {
-        MATCH, CHAR, ANY, CCLASS, NCCLASS, BKREF, // non-epsilon
-        BOL, EOL, BOS, EOS, WORDB, NWORDB, SAVE,  // epsilon
-        JMP, SPLIT, LKAHEAD, NLKAHEAD, RESET, ISPLIT // epsilon
-    };
+struct instruction {
     operation opcode;
-    int addr0;
-    int addr1;
-    wchar_t ch;
-    std::shared_ptr<std::vector<vmspan>> span;
-    int reg;
-    int n1, n2;
-    vmcode (operation a, int b, int c, int d, int e, int f)
-        : opcode (a), addr0 (b), addr1 (c), ch (), span (), reg (d), n1 (e), n2 (f) { }
-    vmcode (operation a, int b, int c)
-        : opcode (a), addr0 (b), addr1 (c), ch (), span (), reg (), n1 (), n2 () { }
-    vmcode (operation a, wchar_t b)
-        : opcode (a), addr0 (), addr1 (), ch (b), span (), reg (), n1 (), n2 () { }
-    vmcode (operation a, std::shared_ptr<std::vector<vmspan>>& b)
-        : opcode (a), addr0 (), addr1 (), ch (), span (b), reg (), n1 (), n2 () { }
-    vmcode (operation a)
-        : opcode (a), addr0 (), addr1 (), ch (), span (), reg (), n1 (), n2 () { }
+    std::wstring s;
+    int x;
+    int y;
+    int r;
+    instruction (operation const a) : opcode (a), s (), x (0), y (0), r (0) {}
+    instruction (operation const a, std::wstring const &b)
+        : opcode (a), s (b), x (0), y (0), r (0) {}
+    instruction (operation const a, int const b, int const c, int const d)
+        : opcode (a), s (), x (b), y (c), r (d) {}
 };
+
+typedef std::vector<instruction> program;
+typedef std::vector<std::wstring::size_type> capture_list;
 
 }//namespace wpike
 
@@ -51,13 +35,12 @@ class regex_error {};
 
 class wregex {
 public:
-    wregex (std::wstring s);
-    std::wstring::size_type exec (std::wstring const str,
-        std::vector<std::wstring::size_type>& capture,
-        std::wstring::size_type const pos) const;
-    std::vector<wpike::vmcode> get_prog() { return prog; }
+    wregex (std::wstring pat);
+    std::wstring::size_type exec (std::wstring const s,
+        wpike::capture_list& m, std::wstring::size_type const sp) const;
+    wpike::program prog() { return e; }
 private:
-    std::vector<wpike::vmcode> prog;
+    wpike::program e;
 };
 
 }//namespace t42
