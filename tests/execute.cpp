@@ -252,10 +252,22 @@ void test14 (test::simple& ts)
     ts.ok (rc3 == std::wstring::npos, L"qr/a(.{2,8}?)c/ !~ \"a123456789c\"");
 }
 
-
 void test13a (test::simple& ts)
 {
     t42::wregex re (L"a(.{2})c");
+    std::wstring str (L"acdcecf");
+    std::vector<std::wstring::size_type> cap;
+    std::wstring::size_type rc = re.exec (str, cap, 0);
+    ts.ok (rc == 4, L"qr/a(.{2})c/ =~ \"acdc\"_\"ecf\"");
+    std::wstring m0(str.begin () + cap[0], str.begin () + cap[1]);
+    std::wstring m1(str.begin () + cap[2], str.begin () + cap[3]);
+    ts.ok (m0 == L"acdc", L"$0 == \"acdc\"");
+    ts.ok (m1 == L"cd", L"$1 == \"cd\"");
+}
+
+void test13b (test::simple& ts)
+{
+    t42::wregex re (L"a(.{2}?)c");
     std::wstring str (L"acdcecf");
     std::vector<std::wstring::size_type> cap;
     std::wstring::size_type rc = re.exec (str, cap, 0);
@@ -425,7 +437,7 @@ int main (int argc, char* argv[])
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (91);
+    test::simple ts (94);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -441,6 +453,7 @@ int main (int argc, char* argv[])
     test12 (ts);
     test13 (ts);
     test13a (ts);
+    test13b (ts);
     test14 (ts);
     test15 (ts);
     test16 (ts);

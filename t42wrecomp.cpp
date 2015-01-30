@@ -126,7 +126,7 @@ bool vmcompiler::interval (derivs_t& p, program& e)
         ++p;
     int const d = e.size ();
     int const r = mreg++;
-    if (greedy)
+    if (n1 == n2 || greedy)
         e.insert (e.begin (), instruction (SPLIT, 0, d + 1, 0));
     else
         e.insert (e.begin (), instruction (SPLIT, d + 1, 0, 0));

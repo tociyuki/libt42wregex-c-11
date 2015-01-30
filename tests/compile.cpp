@@ -341,7 +341,7 @@ struct testspec {
     {L"a{2}?",
      L"reset %0\n"
      L"rep 2,2,%0\n"
-     L"split 2,0\n"
+     L"split 0,2\n"
      L"char 'a'\n"
      L"jmp -4\n"
      L"match\n"},
