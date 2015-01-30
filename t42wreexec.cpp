@@ -236,6 +236,8 @@ std::wstring::size_type vmengine::advance (std::vector<vmcode> const& prog,
                         addepsilon (rdy, vmthread{op.addr0 + th.ip + 1, sp, th.cap, cnt});
                         addepsilon (rdy, vmthread{op.addr1 + th.ip + 1, sp, th.cap, cnt});
                     }
+                    else if (op.n1 == op.n2)
+                        addepsilon (rdy, vmthread{op.addr1 + th.ip + 1, sp, th.cap, cnt});
                     break;
                 case vmcode::LKAHEAD:
                 case vmcode::NLKAHEAD:
