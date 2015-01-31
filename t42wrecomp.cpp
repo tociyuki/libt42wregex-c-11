@@ -74,6 +74,7 @@ bool vmcompiler::cat (derivs_t& p, program& e)
 
 bool vmcompiler::term (derivs_t& p, program& e)
 {
+auto p0 = p;
     program e1;
     if (! factor (p, e1))
         return false;
@@ -182,7 +183,7 @@ bool vmcompiler::factor (derivs_t& p, program& e)
 bool vmcompiler::group (derivs_t& p, program& e)
 {
     operation op = SAVE;
-    if (L'\x3f' == *p) {
+    if (L'?' == *p) {
         op = L':' == p[1] ? ANY
            : L'=' == p[1] ? LKAHEAD
            : L'!' == p[1] ? NLKAHEAD

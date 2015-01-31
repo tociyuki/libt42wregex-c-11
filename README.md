@@ -42,7 +42,7 @@ For examples, to build and run this:
     $ clang++ -std=c++11 -c t42wrecomp.cpp
     $ clang++ -std=c++11 -c t42wreexec.cpp
     $ ar r libt42wregex.a t42wrecomp.o t42wreexec.o
-    $ clang++ -std=c++11 -L./ -o example main.cpp -lt42wregex
+    $ clang++ -std=c++11 -Wtrigraphs -L./ -o example main.cpp -lt42wregex
     $ ./example
 
 SYNTAX

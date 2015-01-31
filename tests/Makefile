@@ -1,5 +1,5 @@
 CXX=c++
-CXXFLAGS=-std=c++11 -O2 -I..
+CXXFLAGS=-std=c++11 -Wtrigraphs -O2 -I..
 OBJS=t42wrecomp.o t42wreexec.o
 
 test : compile execute

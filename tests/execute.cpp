@@ -432,12 +432,41 @@ void test22 (test::simple& ts)
     ts.ok (rc2 == std::wstring::npos, L"qr/abc(?!efg)(.{3,});/ !~ \"abcefg; negative lookahead.\"");
 }
 
+void test23g (test::simple& ts)
+{
+    t42::wregex re (L"one(self)?(selfsufficient)?");
+    std::wstring s (L"oneselfsufficient");
+    t42::wregex::capture_list m;
+    std::wstring::size_type rc = re.exec (s, m, 0);
+    ts.ok (rc == 7, L"qr/one(self)?(selfsufficient)?/ =~ \"oneself\"_\"sufficient\"");
+    std::wstring m0(s.begin () + m[0], s.begin () + m[1]);
+    ts.ok (m0 == L"oneself", L"$0 == \"oneself\"");
+    //ts.diag (std::wstring (L"m.size ()==") + std::to_wstring (m.size ()));
+    std::wstring m1(s.begin () + m[2], s.begin () + m[3]);
+    ts.ok (m1 == L"self", L"$1 == \"self\"");
+}
+
+void test23n (test::simple& ts)
+{
+    t42::wregex re (L"one(self)?\?(selfsufficient)?"); // avoid trigraph
+    std::wstring s (L"oneselfsufficient");
+    t42::wregex::capture_list m;
+    std::wstring::size_type rc = re.exec (s, m, 0);
+    ts.ok (rc == 17, L"qr/one(self)?(selfsufficient)?/ =~ \"oneselfsufficient\"_");
+    std::wstring m0(s.begin () + m[0], s.begin () + m[1]);
+    ts.ok (m0 == L"oneselfsufficient", L"$0 == \"oneselfsufficient\"");
+    std::wstring m1(s.begin () + m[2], s.begin () + m[3]);
+    ts.ok (m1 == L"", L"$1 == \"\"");
+    std::wstring m2(s.begin () + m[4], s.begin () + m[5]);
+    ts.ok (m2 == L"selfsufficient", L"$2 == \"selfsufficient\"");
+}
+
 int main (int argc, char* argv[])
 {
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (94);
+    test::simple ts (101);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -463,6 +492,8 @@ int main (int argc, char* argv[])
     test20 (ts);
     test21 (ts);
     test22 (ts);
+    test23g (ts);
+    test23n (ts);
     return ts.done_testing ();
 }
 
