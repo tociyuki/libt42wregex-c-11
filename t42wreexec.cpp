@@ -64,6 +64,8 @@ string_pointer epsilon_closure::advance (vmthread& th0, string_pointer const sp0
     vmthread_que run, rdy;
     addthread (run, vmthread{th0.ip, th0.cap, th0.cnt}, sp0);
     for (string_pointer sp = sp0; ; ++sp) {
+        if (run.empty ())
+            break;
         ++gen;
         for (vmthread th : run) {
             int d;
