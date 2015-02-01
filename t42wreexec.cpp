@@ -199,8 +199,6 @@ bool epsilon_closure::atwordbound (string_pointer const sp) const
         return sp - 1 < s.size () && isword (s[sp - 1]);
     else if (isword (s[sp - 1]) ^ isword (s[sp]))
         return true;
-    else if (sp + 1 < s.size() && (isword (s[sp]) ^ isword (s[sp + 1])))
-        return true;
     return false;
 }
 
@@ -208,7 +206,7 @@ bool epsilon_closure::isword (wchar_t const c) const
 {
     static const std::wstring words (
         L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
-    return words.find (c) != std::wstring::npos;
+    return c >= 128 || words.find (c) != std::wstring::npos;
 }
 
 // return > 0   continue backref comparison

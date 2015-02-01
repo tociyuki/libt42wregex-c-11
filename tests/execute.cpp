@@ -158,6 +158,23 @@ void test9 (test::simple& ts)
     ts.ok (m1 == L"b", L"$1 == \"b\"");
 }
 
+void test10b (test::simple& ts)
+{
+    t42::wregex re (L".\\b.");
+    std::wstring s1 (L"abc");
+    t42::wregex::capture_list m;
+    std::wstring::size_type rc1 = re.exec (s1, m, 0);
+    ts.ok (rc1 == std::wstring::npos, L"qr/.\\b./ !~ \"abc\"");
+
+    std::wstring s2 (L" abc");
+    std::wstring::size_type rc2 = re.exec (s2, m, 0);
+    ts.ok (rc2 == 2, L"qr/.\\b./ =~ \" a\"_\"bc\"");
+
+    std::wstring s3 (L"a bc");
+    std::wstring::size_type rc3 = re.exec (s3, m, 0);
+    ts.ok (rc3 == 2, L"qr/.\\b./ =~ \"a \"_\"bc\"");
+}
+
 void test10 (test::simple& ts)
 {
     t42::wregex re (L".*\\b(abc\\B..)");
@@ -466,7 +483,7 @@ int main (int argc, char* argv[])
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (101);
+    test::simple ts (104);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -476,6 +493,7 @@ int main (int argc, char* argv[])
     test7 (ts);
     test8 (ts);
     test9 (ts);
+    test10b (ts);
     test10 (ts);
     test11g (ts);
     test11 (ts);
