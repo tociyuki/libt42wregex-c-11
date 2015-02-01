@@ -195,13 +195,9 @@ bool epsilon_closure::cclass (std::wstring const& span, wchar_t const c) const
 
 bool epsilon_closure::atwordbound (string_pointer const sp) const
 {
-    if (sp == 0)
-        return sp < s.size () && isword (s[sp]);
-    else if (sp >= s.size ())
-        return sp - 1 < s.size () && isword (s[sp - 1]);
-    else if (isword (s[sp - 1]) ^ isword (s[sp]))
-        return true;
-    return false;
+    wchar_t c0 = 0 < sp && sp - 1 < s.size () ? s[sp - 1] : L' ';
+    wchar_t c1 = sp < s.size () ? s[sp] : L' ';
+    return isword (c0) ^ isword(c1) ? true : false;
 }
 
 bool epsilon_closure::isword (wchar_t const c) const
