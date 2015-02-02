@@ -129,6 +129,20 @@ std::wstring list (std::wstring const& s)
             t += std::to_wstring (op.y);
             t += L"\n";
             break;
+        case t42::wpike::LKBEHIND:
+            t += L"lkbehind ";
+            t += std::to_wstring (op.x);
+            t += L",";
+            t += std::to_wstring (op.y);
+            t += L"\n";
+            break;
+        case t42::wpike::NLKBEHIND:
+            t += L"nlkbehind ";
+            t += std::to_wstring (op.x);
+            t += L",";
+            t += std::to_wstring (op.y);
+            t += L"\n";
+            break;
         case t42::wpike::RESET:
             t += L"reset %";
             t += std::to_wstring (op.r);
@@ -653,6 +667,82 @@ struct testspec {
      L"char 'b'\n"
      L"match\n"
      L"any\n"
+     L"match\n"},
+
+    {L"(?<=a)b",
+     L"lkbehind 0,2\n"
+     L"char 'a'\n"
+     L"match\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L"(?<=a+)b",
+     L"lkbehind 0,3\n"
+     L"char 'a'\n"
+     L"split -2,0\n"
+     L"match\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L"(?<=xyz)b",
+     L"lkbehind 0,4\n"
+     L"char 'z'\n"
+     L"char 'y'\n"
+     L"char 'x'\n"
+     L"match\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L"((?<=(a))b)",
+     L"save 2\n"
+     L"lkbehind 0,4\n"
+     L"save 5\n"
+     L"char 'a'\n"
+     L"save 4\n"
+     L"match\n"
+     L"char 'b'\n"
+     L"save 3\n"
+     L"match\n"},
+
+    {L"(?<!a)b",
+     L"nlkbehind 0,2\n"
+     L"char 'a'\n"
+     L"match\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L"(?<!a+)b",
+     L"nlkbehind 0,3\n"
+     L"char 'a'\n"
+     L"split -2,0\n"
+     L"match\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L"(?<!xyz)b",
+     L"nlkbehind 0,4\n"
+     L"char 'z'\n"
+     L"char 'y'\n"
+     L"char 'x'\n"
+     L"match\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L".*?((?<=(a)(b))c)",
+     L"split 2,0\n"
+     L"any\n"
+     L"jmp -3\n"
+     L"save 2\n"
+     L"lkbehind 0,7\n"
+     L"save 7\n"
+     L"char 'b'\n"
+     L"save 6\n"
+     L"save 5\n"
+     L"char 'a'\n"
+     L"save 4\n"
+     L"match\n"
+     L"char 'c'\n"
+     L"save 3\n"
      L"match\n"},
 };
 

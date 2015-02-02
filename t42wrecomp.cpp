@@ -11,16 +11,16 @@ typedef std::wstring::iterator derivs_t;
 
 class vmcompiler {
 public:
-    bool exp (derivs_t& p, program& e);
+    bool exp (derivs_t& p, program& e, int d);
 private:
     int mgroup;
     int mreg;
-    bool alt (derivs_t& p, program& e);
-    bool cat (derivs_t& p, program& e);
-    bool term (derivs_t& p, program& e);
+    bool alt (derivs_t& p, program& e, int d);
+    bool cat (derivs_t& p, program& , int d);
+    bool term (derivs_t& p, program& e, int d);
     bool interval (derivs_t& p, program& e);
-    bool factor (derivs_t& p, program& e);
-    bool group (derivs_t& p, program& e);
+    bool factor (derivs_t& p, program& e, int d);
+    bool group (derivs_t& p, program& e, int d);
     bool cclass (derivs_t& p, program& e);
     bool regchar (derivs_t& p, wchar_t& c);
     template<typename T>
@@ -28,26 +28,26 @@ private:
     int c7toi (wchar_t c);
 };
 
-bool vmcompiler::exp (derivs_t& p, program& e)
+bool vmcompiler::exp (derivs_t& p, program& e, int d)
 {
     mgroup = 0;
     mreg = 0;
-    if (! (alt (p, e) && L'\0' == *p))
+    if (! (alt (p, e, d) && L'\0' == *p))
         return false;
     e.push_back (instruction (MATCH));
     return true;
 }
 
-bool vmcompiler::alt (derivs_t& p, program& e)
+bool vmcompiler::alt (derivs_t& p, program& e, int d)
 {
     std::vector<std::size_t> patch;
     program lhs;
-    if (! cat (p, lhs))
+    if (! cat (p, lhs, d))
         return false;
     while (L'|' == *p) {
         ++p;
         program rhs;
-        if (! cat (p, rhs))
+        if (! cat (p, rhs, d))
             return false;
         if (lhs.size () == 0 && rhs.size () == 0)
             continue;
@@ -64,19 +64,25 @@ bool vmcompiler::alt (derivs_t& p, program& e)
     return true;
 }
 
-bool vmcompiler::cat (derivs_t& p, program& e)
+bool vmcompiler::cat (derivs_t& p, program& e, int d)
 {
-    while (L'|' != *p && L')' != *p && L'\0' != *p)
-        if (! term (p, e))
+    while (L'|' != *p && L')' != *p && L'\0' != *p) {
+        program e1;
+        if (! term (p, e1, d))
             return false;
+        if (d < 0)
+            e.insert (e.begin (), e1.begin (), e1.end ());
+        else
+            e.insert (e.end (), e1.begin (), e1.end ());
+    }
     return true;
 }
 
-bool vmcompiler::term (derivs_t& p, program& e)
+bool vmcompiler::term (derivs_t& p, program& e, int d)
 {
 auto p0 = p;
     program e1;
-    if (! factor (p, e1))
+    if (! factor (p, e1, d))
         return false;
     if (L'?' == *p || L'*' == *p || L'+' == *p) {
         wchar_t const repetition = *p++;
@@ -137,7 +143,7 @@ bool vmcompiler::interval (derivs_t& p, program& e)
     return true;
 }
 
-bool vmcompiler::factor (derivs_t& p, program& e)
+bool vmcompiler::factor (derivs_t& p, program& e, int d)
 {
     static const std::wstring pat1 (L".^$");
     static const std::vector<operation> op1{ANY, BOL, EOL};
@@ -147,7 +153,7 @@ bool vmcompiler::factor (derivs_t& p, program& e)
     std::wstring::size_type idx;
     if (L'(' == *p) {
         ++p;
-        if (! group (p, e))
+        if (! group (p, e, d))
             return false;
     }
     else if (L'[' == *p) {
@@ -180,32 +186,40 @@ bool vmcompiler::factor (derivs_t& p, program& e)
     return true;
 }
 
-bool vmcompiler::group (derivs_t& p, program& e)
+bool vmcompiler::group (derivs_t& p, program& e, int d)
 {
     operation op = SAVE;
     if (L'?' == *p) {
         op = L':' == p[1] ? ANY
            : L'=' == p[1] ? LKAHEAD
            : L'!' == p[1] ? NLKAHEAD
+           : L'<' == p[1] && L'=' == p[2] ? LKBEHIND
+           : L'<' == p[1] && L'!' == p[2] ? NLKBEHIND
            : op;
         if (SAVE == op)
             return false;
-        p += 2;
+        p += L'<' == p[1] ? 3 : 2;
     }
-    int n = mgroup + 1;
-    if (SAVE == op)
-        e.push_back (instruction (SAVE, ++mgroup * 2, 0, 0));
+    int n1 = (mgroup + 1) * 2;
+    int n2 = (mgroup + 1) * 2 + 1;
+    if (SAVE == op) {
+        ++mgroup;
+        if (d < 0)
+            std::swap (n1, n2);
+        e.push_back (instruction (SAVE, n1, 0, 0));
+    }
     int dot = e.size ();
-    if (LKAHEAD == op || NLKAHEAD == op)
+    if (LKAHEAD == op || NLKAHEAD == op || LKBEHIND == op || NLKBEHIND == op)
         e.push_back (instruction (op, 0, 0, 0));
-    if (! (alt (p, e) && L')' == *p++))
+    d = (LKBEHIND == op || NLKBEHIND == op) ? -1 : d;
+    if (! (alt (p, e, d) && L')' == *p++))
         return false;
-    if (LKAHEAD == op || NLKAHEAD == op) {
-        e.push_back (instruction (MATCH));
+    if (LKAHEAD == op || NLKAHEAD == op || LKBEHIND == op || NLKBEHIND == op) {
+        e.push_back (instruction (MATCH, 0, 0, 0));
         e[dot].y = e.size () - dot - 1;
     }
     if (SAVE == op)
-        e.push_back (instruction (SAVE, n * 2 + 1, 0, 0));
+        e.push_back (instruction (SAVE, n2, 0, 0));
     return true;
 }
 
@@ -302,7 +316,7 @@ wregex::wregex (std::wstring s)
     wpike::vmcompiler comp;
     s.push_back (L'\0');
     std::wstring::iterator p = s.begin ();
-    if (! comp.exp (p, e))
+    if (! comp.exp (p, e, +1))
         throw regex_error ();
 }
 

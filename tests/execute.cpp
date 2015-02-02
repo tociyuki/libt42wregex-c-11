@@ -478,12 +478,90 @@ void test23n (test::simple& ts)
     ts.ok (m2 == L"selfsufficient", L"$2 == \"selfsufficient\"");
 }
 
+void test24 (test::simple& ts)
+{
+// https://github.com/shirok/Gauche/blob/master/test/regexp.scm
+    t42::wregex::capture_list m;
+    t42::wregex re1 (L".*?((?<=a)b)");
+    std::wstring s1 (L"b");
+    ts.ok (re1.exec (s1, m, 0) == std::wstring::npos, L"/.*?((?<=a)b)/ !~ \"b\"");
+    std::wstring s2 (L"ab");
+    ts.ok (re1.exec (s2, m, 0) == 2, L"/.*?((?<=a)b)/ =~ \"ab\"");
+    ts.ok (s2.substr (m[2], m[3] - m[2]) == L"b", L"$1 \"b\"");
+    t42::wregex re3 (L".*?((?<=a+)b)");
+    std::wstring s3 (L"aab");
+    ts.ok (re3.exec (s3, m, 0) == 3, L"/.*?((?<=a+)b)/ =~ \"aab\"");
+    ts.ok (s3.substr (m[2], m[3] - m[2]) == L"b", L"$1 \"b\"");
+    t42::wregex re4 (L".*?((?<=x[yz])b)");
+    std::wstring s4 (L"xzb");
+    ts.ok (re4.exec (s4, m, 0) == 3, L"/.*?((?<=x[yz])b)/ =~ \"xzb\"");
+    t42::wregex re5 (L".*?((?<=zyx)b)");
+    std::wstring s5 (L"xyzb");
+    ts.ok (re5.exec (s5, m, 0), L"/.*?((?<=zyx)b)/ !~ \"xyzb\"");
+    t42::wregex re6 (L".*?((?<=[ab]+)c)");
+    std::wstring s6 (L"abc");
+    ts.ok (re6.exec (s6, m, 0) == 3, L"/.*?((?<=[ab]+)c)/ =~ \"abc\"");
+    t42::wregex re7 (L".*?((?<!<[^>]*)foo)");
+    std::wstring s7 (L"<foo>");
+    ts.ok (re7.exec (s7, m, 0) == std::wstring::npos, L"/.*?((?<!<[^>]*)foo)/ =~ \"<foo>\"");
+    std::wstring s8 (L"<bar>foo");
+    ts.ok (re7.exec (s8, m, 0) == 8, L"/.*?((?<!<[^>]*)foo)/ =~ \"<bar>foo\"");
+    ts.ok (s8.substr (m[2], m[3] - m[2]) == L"foo", L"$1 \"foo\"");
+    t42::wregex re9 (L".*?((?<=^a)b)");
+    std::wstring s9 (L"ab");
+    ts.ok (re9.exec (s9, m, 0) == 2, L"/.*?((?<=^a)b)/ =~ \"ab\"");
+    std::wstring s10 (L",,,\nab");
+    ts.ok (re9.exec (s10, m, 0) == 6, L"/.*?((?<=^a)b)/ =~ \",,,\\nab\"");
+    t42::wregex re11 (L".*?((?<=^)b)");
+    std::wstring s11 (L"ab");
+    ts.ok (re11.exec (s11, m, 0) == std::wstring::npos, L"/.*?((?<=^)b)/ !~ \"ab\"");
+    std::wstring s12 (L"b");
+    ts.ok (re11.exec (s12, m, 0) == 1, L"/.*?((?<=^)b)/ =~ \"b\"");
+    t42::wregex re13 (L".(?<=^)b");
+    std::wstring s13 (L"a^b");
+    ts.ok (re13.exec (s13, m, 0) == std::wstring::npos, L"/.(?<=^)b/ !~ \"a^b\"");
+    t42::wregex re14 (L".*?((?<=^a)$)");
+    std::wstring s14 (L"a");
+    ts.ok (re14.exec (s14, m, 0) == 1, L"/(?<=^a)$/ =~ \"a\"");
+    ts.ok (s14.substr (m[2], m[3] - m[2]) == L"", L"$1 \"\"");
+    t42::wregex re15 (L".*?((?<=(a))b)");
+    std::wstring s15 (L"ab");
+    ts.ok (re15.exec (s15, m, 0) == 2, L"/.*?((?<=(a))b)/ =~ \"ab\"");
+    ts.ok (s15.substr (m[2], m[3] - m[2]) == L"b", L"$1 \"b\"");
+    ts.ok (s15.substr (m[4], m[5] - m[4]) == L"a", L"$2 \"a\"");
+    t42::wregex re16 (L".*?((?<=(a)(b))c)");
+    std::wstring s16 (L"abc");
+    ts.ok (re16.exec (s16, m, 0) == 3, L"/.*?((?<=(a)(b))c)/ =~ \"abc\"");
+    ts.ok (s16.substr (m[2], m[3] - m[2]) == L"c", L"$1 \"c\"");
+    ts.ok (s16.substr (m[4], m[5] - m[4]) == L"a", L"$2 \"a\"");
+    ts.ok (s16.substr (m[6], m[7] - m[6]) == L"b", L"$3 \"b\"");
+    t42::wregex re17 (L".*?((?<=(a)|(b))c)");
+    std::wstring s17 (L"bc");
+    ts.ok (re17.exec (s17, m, 0) == 2, L"/.*?((?<=(a)|(b))c)/ =~ \"bc\"");
+    ts.ok (s17.substr (m[2], m[3] - m[2]) == L"c", L"$1 \"c\"");
+    ts.ok (m[4] >= s17.size () && m[5] >= s17.size (), L"$2 nil");
+    ts.ok (s17.substr (m[6], m[7] - m[6]) == L"b", L"$3 \"b\"");
+    t42::wregex re18 (L".*?((?<=(?<!foo)bar)baz)");
+    std::wstring s18 (L"abarbaz");
+    ts.ok (re18.exec (s18, m, 0) == 7, L"/.*?((?<=(?<!foo)bar)baz)/ =~ \"abarbaz\"");
+    std::wstring s19 (L"foobarbaz");
+    ts.ok (re18.exec (s19, m, 0) == std::wstring::npos, L"/.*?((?<=(?<!foo)bar)baz)/ !~ \"foobarbaz\"");
+    t42::wregex re20 (L".*?((?<=[0-9][0-9][0-9])(?<!999)foo)");
+    std::wstring s20 (L"865foo");
+    ts.ok (re20.exec (s20, m, 0) == 6, L"/.*?((?<=[0-9][0-9][0-9])(?<!999)foo)/ =~ \"865foo\"");
+    std::wstring s21 (L"999foo");
+    ts.ok (re20.exec (s21, m, 0) == std::wstring::npos, L"/.*?((?<=[0-9][0-9][0-9])(?<!999)foo)/ !~ \"999foo\"");
+    t42::wregex re22 (L".*?(abc)...(?<=\\1)");
+    std::wstring s22 (L"abcabc");
+    ts.ok (re22.exec (s22, m, 0) == 6, L"/.*?(abc)...(?<=\\1)/ =~ \"abcabc\"");
+}
+
 int main (int argc, char* argv[])
 {
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (104);
+    test::simple ts (138);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -512,6 +590,7 @@ int main (int argc, char* argv[])
     test22 (ts);
     test23g (ts);
     test23n (ts);
+    test24 (ts);
     return ts.done_testing ();
 }
 

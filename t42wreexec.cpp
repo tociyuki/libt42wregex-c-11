@@ -43,57 +43,60 @@ class epsilon_closure {
 public:
     epsilon_closure (program const& e0, std::wstring const& s0)
         : e (e0), s (s0), gen (1), mark (e0.size (), 0) {}
-    string_pointer advance (vmthread& th0, string_pointer sp0);
+    bool advance (vmthread& th0, string_pointer sp0, int d);
 private:
     program const& e;
     std::wstring const& s;
     int gen;
     std::vector<int> mark;
-    void addthread (vmthread_que& q, vmthread&& th, string_pointer const sp);
+    void addthread (vmthread_que& q, vmthread&& th, string_pointer const sp, int d);
     bool cclass (std::wstring const& span, wchar_t const c) const;
     bool atwordbound (string_pointer const sp) const;
     bool isword (wchar_t const c) const;
-    int backref (vmthread const& th, string_pointer const sp) const;
+    int backref (vmthread const& th, string_pointer const sp, int d) const;
 };
 
 // based on Russ Cox, ``Regular Expression Matching: the Virtual Machine Approach''
 //      http://swtch.com/~rsc/regexp/regexp2.html
-string_pointer epsilon_closure::advance (vmthread& th0, string_pointer const sp0)
+bool epsilon_closure::advance (vmthread& th0, string_pointer const sp0, int d)
 {
-    string_pointer match = std::wstring::npos;
+    string_pointer match = false;
     vmthread_que run, rdy;
-    addthread (run, vmthread{th0.ip, th0.cap, th0.cnt}, sp0);
-    for (string_pointer sp = sp0; ; ++sp) {
+    addthread (run, vmthread{th0.ip, th0.cap, th0.cnt}, sp0, d);
+    for (string_pointer sp = sp0; ; sp += d) {
         if (run.empty ())
             break;
         ++gen;
+        //  d > 0   "abc"."d"_"efg"     s[sp] == op.s[0]
+        //  d < 0   "abc"_"d"."efg"     s[sp-1] == op.s[0]
+        string_pointer sp1 = d > 0 ? sp : sp - 1;
         for (vmthread th : run) {
-            int d;
+            int ct;
             instruction op = e[th.ip];
             switch (op.opcode) {
             case CHAR:
-                if (sp < s.size () && s[sp] == op.s[0])
-                    addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + 1);
+                if (sp1 < s.size () && s[sp1] == op.s[0])
+                    addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + d, d);
                 break;
             case ANY:
-                if (sp < s.size ())
-                    addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + 1);
+                if (sp1 < s.size ())
+                    addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + d, d);
                 break;
             case CCLASS:
             case NCCLASS:
-                if (sp < s.size () && (cclass (op.s, s[sp]) ^ (op.opcode == NCCLASS)))
-                    addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + 1);
+                if (sp1 < s.size () && (cclass (op.s, s[sp1]) ^ (op.opcode == NCCLASS)))
+                    addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + d, d);
                 break;
             case BKREF:
-                d = backref (th, sp);
-                if (d > 0)
-                    addthread (rdy, vmthread{th.ip, th.cap, th.preset (op.r, d)}, sp + 1);
-                else if (d == 0)
-                    addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + 1);
+                ct = backref (th, sp1, d);
+                if (ct > 0)
+                    addthread (rdy, vmthread{th.ip, th.cap, th.preset (op.r, ct)}, sp + d, d);
+                else if (ct == 0)
+                    addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + d, d);
                 break;
             case MATCH:
                 th0.cap = th.update (1, sp);
-                match = sp;
+                match = true;
                 goto cutoff_lower_order_threads;
             default:
                 throw "JMP, SPLIT, SAVE, and so on already with addthread.. but why?";
@@ -102,13 +105,13 @@ string_pointer epsilon_closure::advance (vmthread& th0, string_pointer const sp0
     cutoff_lower_order_threads:
         std::swap (run, rdy);
         rdy.clear ();
-        if (sp >= s.size ())
+        if (sp1 >= s.size ())
             break;
     }
     return match;
 }
 
-void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer const sp)
+void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer const sp, int d)
 {
     if (mark[th.ip] == gen)
         return;
@@ -119,60 +122,68 @@ void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer 
         q.push_back (std::move (th));
         break;
     case BOL:
-        if (sp == 0 || s[sp - 1] == L'\n')
-            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp);
+        if (sp - 1 >= s.size () || L'\n' == s[sp - 1])
+            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp, d);
         break;
     case EOL:
-        if (sp >= s.size () || s[sp] == L'\n')
-            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp);
+        if (sp >= s.size () || L'\n' == s[sp])
+            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp, d);
         break;
     case BOS:
         if (sp == 0)
-            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp);
+            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp, d);
         break;
     case EOS:
         if (sp >= s.size ())
-            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp);
+            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp, d);
         break;
     case WORDB:
     case NWORDB:
-        if (atwordbound (sp) ^ (op.opcode == NWORDB))
-            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp);
+        if (atwordbound (sp) ^ (NWORDB == op.opcode))
+            addthread (q, vmthread{th.ip + 1, th.cap, th.cnt}, sp, d);
         break;
     case LKAHEAD:
     case NLKAHEAD:
         {
             epsilon_closure sub (e, s);
             vmthread th1{op.x + th.ip + 1, th.cap, th.cnt};
-            string_pointer sp1 = sub.advance (th1, sp);
-            if ((sp1 == std::wstring::npos) ^ (op.opcode == LKAHEAD))
-                addthread (q, vmthread{op.y + th.ip + 1, th1.cap, th1.cnt}, sp);
+            if (sub.advance (th1, sp, d) ^ (NLKAHEAD == op.opcode))
+                addthread (q, vmthread{op.y + th.ip + 1, th1.cap, th1.cnt}, sp, d);
+        }
+        break;
+    case LKBEHIND:
+    case NLKBEHIND:
+        {
+            epsilon_closure sub (e, s);
+            vmthread th1{op.x + th.ip + 1, th.cap, th.cnt};
+            if (sub.advance (th1, sp, -1) ^ (NLKBEHIND == op.opcode))
+                addthread (q, vmthread{op.y + th.ip + 1, th1.cap, th1.cnt}, sp, d);
         }
         break;
     case RESET:
-        addthread (q, vmthread{th.ip + 1, th.cap, th.preset (op.r, 0)}, sp);
+        addthread (q, vmthread{th.ip + 1, th.cap, th.preset (op.r, 0)}, sp, d);
         break;
     case REP:
         {
             int const i = th.cnt->at (op.r) + 1;
             counter_ptr cnt = th.preset (op.r, i);
             if (i <= op.x)
-                addthread (q, vmthread{th.ip + 2, th.cap, cnt}, sp);
+                addthread (q, vmthread{th.ip + 2, th.cap, cnt}, sp, d);
             else if (op.y == -1 || i <= op.y)
-                addthread (q, vmthread{th.ip + 1, th.cap, cnt}, sp);
+                addthread (q, vmthread{th.ip + 1, th.cap, cnt}, sp, d);
             else if (op.x == op.y)
-                addthread (q, vmthread{th.ip + 2 + e[th.ip + 1].y, th.cap, cnt}, sp);
+                addthread (q, vmthread{th.ip + 2 + e[th.ip + 1].y, th.cap, cnt}, sp, d);
         }
         break;
     case JMP:
-        addthread (q, vmthread{th.ip + 1 + op.x, th.cap, th.cnt}, sp);
+        addthread (q, vmthread{th.ip + 1 + op.x, th.cap, th.cnt}, sp, d);
         break;
     case SPLIT:
-        addthread (q, vmthread{th.ip + 1 + op.x, th.cap, th.cnt}, sp);
-        addthread (q, vmthread{th.ip + 1 + op.y, th.cap, th.cnt}, sp);
+        addthread (q, vmthread{th.ip + 1 + op.x, th.cap, th.cnt}, sp, d);
+        addthread (q, vmthread{th.ip + 1 + op.y, th.cap, th.cnt}, sp, d);
         break;
     case SAVE:
-        addthread (q, vmthread{th.ip + 1, th.update (op.x, sp), th.cnt}, sp);
+        addthread (q, vmthread{th.ip + 1, th.update (op.x, sp), th.cnt}, sp, d);
         break;
     }
 }
@@ -195,7 +206,7 @@ bool epsilon_closure::cclass (std::wstring const& span, wchar_t const c) const
 
 bool epsilon_closure::atwordbound (string_pointer const sp) const
 {
-    wchar_t c0 = 0 < sp && sp - 1 < s.size () ? s[sp - 1] : L' ';
+    wchar_t c0 = sp - 1 < s.size () ? s[sp - 1] : L' ';
     wchar_t c1 = sp < s.size () ? s[sp] : L' ';
     return isword (c0) ^ isword(c1) ? true : false;
 }
@@ -210,19 +221,26 @@ bool epsilon_closure::isword (wchar_t const c) const
 // return > 0   continue backref comparison
 // return == 0  match backref comparison
 // return < 0   failure backref comparison
-int epsilon_closure::backref (vmthread const& th, string_pointer const sp) const
+int epsilon_closure::backref (vmthread const& th, string_pointer const sp, int d) const
 {
     int const r = e[th.ip].r; // counter register number
     int const n = e[th.ip].x; // capture number
     if (sp >= s.size () || n < 0 || n * 2 + 1 >= th.cap->size ())
         return -1;
-    int const d = th.cnt->at (r);
+    int const ct = th.cnt->at (r);
     int const i1 = th.cap->at (n * 2);
     int const i2 = th.cap->at (n * 2 + 1);
-    if (i1 < 0 || i1 >= i2 || d >= i2 - i1 || s[sp] != s[i1 + d])
+    if (i1 < 0 || i1 >= i2 || ct >= i2 - i1)
         return -1;
-    if (d < i2 - i1 - 1)
-        return d + 1;
+    // ct     0123456
+    // "abc "."backref"_" def"  s[i1 + ct]
+    // ct       6543210
+    // "abc "_"backref"." def"  s[i2 - ct - 1]
+    int const i = d > 0 ? i1 + ct : i2 - ct - 1;
+    if (s[sp] != s[i])
+        return -1;
+    if (ct < i2 - i1 - 1)
+        return ct + 1;
     return 0;
 }
 
@@ -238,10 +256,10 @@ std::wstring::size_type wregex::exec (std::wstring const s,
         std::make_shared<wpike::capture_list> (2, sp),
         std::make_shared<wpike::counter_list> ()
     };
-    std::wstring::size_type sp1 = vm.advance (th, sp);
+    bool x = vm.advance (th, sp, +1);
     m.clear ();
     m.insert (m.begin (), th.cap->begin (), th.cap->end ());
-    return sp1;
+    return x ? m[1] : std::wstring::npos;
 }
 
 }//namespace t42
