@@ -80,7 +80,6 @@ bool vmcompiler::cat (derivs_t& p, program& e, int const d)
 
 bool vmcompiler::term (derivs_t& p, program& e, int const d)
 {
-auto p0 = p;
     program e1;
     if (! factor (p, e1, d))
         return false;
@@ -294,7 +293,7 @@ bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
         c = val1[idx];
     else if (c7toi (c) < 8) {
         --p;
-        if (! digits (p, 8, 3, c))
+        if (! digits (p, 8, 4, c))
             return false;
     }
     else if (L'x' == c) {
@@ -311,9 +310,10 @@ bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
             return false;
         c = *p++ % 32;
     }
-    else if (L'u' == c && c7toi (p[0]) < 16) {
+    else if ((L'u' == c || L'U' == c) && c7toi (p[0]) < 16) {
+        int const n = L'u' == c ? 4 : 8;
         derivs_t p0 = p;
-        if (! digits (p, 16, 4, c) || p - p0 != 4)
+        if (! digits (p, 16, n, c) || p - p0 != n)
             return false;
     }
     return true;

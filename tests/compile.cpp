@@ -501,7 +501,7 @@ struct testspec {
      L"char 'a'\n"
      L"match\n"},
 
-    {L"\\0123",
+    {L"\\00123",
      L"char '\\n'\n"
      L"char '3'\n"
      L"match\n"},
@@ -543,6 +543,11 @@ struct testspec {
      L"match\n"},
 
     {L"\\u00301",
+     L"char '0'\n"
+     L"char '1'\n"
+     L"match\n"},
+
+    {L"\\U000000301",
      L"char '0'\n"
      L"char '1'\n"
      L"match\n"},
