@@ -145,18 +145,16 @@ void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer 
     case LKAHEAD:
     case NLKAHEAD:
         {
-            epsilon_closure sub (e, s);
             vmthread th1{op.x + th.ip + 1, th.cap, th.cnt};
-            if (sub.advance (th1, sp, d) ^ (NLKAHEAD == op.opcode))
+            if (advance (th1, sp, d) ^ (NLKAHEAD == op.opcode))
                 addthread (q, vmthread{op.y + th.ip + 1, th1.cap, th1.cnt}, sp, d);
         }
         break;
     case LKBEHIND:
     case NLKBEHIND:
         {
-            epsilon_closure sub (e, s);
             vmthread th1{op.x + th.ip + 1, th.cap, th.cnt};
-            if (sub.advance (th1, sp, -1) ^ (NLKBEHIND == op.opcode))
+            if (advance (th1, sp, -1) ^ (NLKBEHIND == op.opcode))
                 addthread (q, vmthread{op.y + th.ip + 1, th1.cap, th1.cnt}, sp, d);
         }
         break;
