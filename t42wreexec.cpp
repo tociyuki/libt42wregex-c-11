@@ -2,8 +2,9 @@
 #include <string>
 #include <memory>
 #include <utility>
+#include <clocale>
+#include <cwctype>
 #include "t42wregex.hpp"
-#include <iostream>
 
 namespace t42 {
 namespace wpike {
@@ -191,7 +192,15 @@ bool epsilon_closure::cclass (std::wstring const& span, wchar_t const c) const
 {
     static const std::vector<int> range{
         'd',0,10,0, 'D',0,10,1, 's',38,44,0, 'S',38,44,1, 'w',0,38,0, 'W',0,38,1};
-    int i;
+    static const std::vector<std::string> ctname{
+        "alnum", "alpha", "blank", "cntrl", "digit", "graph",
+        "lower", "print", "space", "upper", "xdigit"};
+    static std::vector<std::wctype_t> ctident;
+    if (ctident.empty ()) {
+        for (auto x : ctname)
+            ctident.push_back (wctype (x.c_str ()));
+    }
+    int i, v;
     int n = c7toi (c);
     for (auto p = span.begin (); p < span.end (); ++p)
         switch (*p) {
@@ -202,6 +211,13 @@ bool epsilon_closure::cclass (std::wstring const& span, wchar_t const c) const
         case L'*':
             i = (*++p - L'0') * 4;
             if ((range[i + 1] <= n && n < range[i + 2]) ^ range[i + 3])
+                return true;
+            break;
+        case L':':
+            i = *++p - L'a';
+            v = i >= ctident.size ();
+            i = v ? i - ctident.size () : i;
+            if (std::iswctype (c, ctident.at (i)) ^ v)
                 return true;
             break;
         case L'-':
@@ -273,9 +289,10 @@ int c7toi (wchar_t c)
 }//namespace wpike
 
 std::wstring::size_type wregex::exec (std::wstring const s,
-    wpike::capture_list& m, std::wstring::size_type const sp) const
+    wpike::capture_list& m, std::wstring::size_type const sp, char const* lc) const
 {
     enum { START = 0 };
+    char const* const saved_lc = std::setlocale (LC_CTYPE, lc);
     wpike::epsilon_closure vm (e, s);
     wpike::vmthread th{
         START,
@@ -285,6 +302,7 @@ std::wstring::size_type wregex::exec (std::wstring const s,
     bool x = vm.advance (th, sp, +1);
     m.clear ();
     m.insert (m.begin (), th.cap->begin (), th.cap->end ());
+    std::setlocale (LC_CTYPE, saved_lc);
     return x ? m[1] : std::wstring::npos;
 }
 

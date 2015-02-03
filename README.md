@@ -103,7 +103,13 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / '\\W'              # complement \w
            / '\\s'              # range \ \t\r\n\f\v
            / '\\S'              # complement \s
-                                ## [:XXX:] are not implemented
+           / '[:alnum:]' / '[:alpha:]' / '[:lower:]' / '[:upper:]'
+           / '[:digit:]' / '[:blank:]' / '[:cntrl:]' / '[:graph:]'
+           / '[:print:]' / '[:space:]' / '[:xdigit:]'
+           / '[:^alnum:]' / '[:^alpha:]' / '[:^lower:]' / '[:^upper:]'
+           / '[:^digit:]' / '[:^blank:]' / '[:^cntrl:]' / '[:^graph:]'
+           / '[:^print:]' / '[:^space:]' / '[:^xdigit:]'
+                                # std::iswctype names depended LC_CTYPE
 
     char   <- '\\t'             # horizontal tab (\x09)
             / '\\n'             # new line       (\x0a)

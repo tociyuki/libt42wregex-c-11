@@ -612,6 +612,22 @@ struct testspec {
      L"cclass \"\\%-\\-\"\n"
      L"match\n"},
 
+    {L"[[:alnum:][:alpha:][:blank:][:cntrl:][:digit:][:graph:][:lower:]]",
+     L"cclass \":a:b:c:d:e:f:g\"\n"
+     L"match\n"},
+
+    {L"[[:print:][:space:][:upper:][:xdigit:][:^alnum:][:^alpha:][:^blank:]]",
+     L"cclass \":h:i:j:k:l:m:n\"\n"
+     L"match\n"},
+
+    {L"[[:^cntrl:][:^digit:][:^graph:][:^lower:][:^print:][:^space:][:^upper:]]",
+     L"cclass \":o:p:q:r:s:t:u\"\n"
+     L"match\n"},
+
+    {L"[[:^xdigit:]]",
+     L"cclass \":v\"\n"
+     L"match\n"},
+
     {L"[[]",
      L"cclass \"\\[\"\n"
      L"match\n"},
