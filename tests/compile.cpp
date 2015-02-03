@@ -762,6 +762,19 @@ struct testspec {
      L"split -2,0\n"
      L"save 3\n"
      L"match\n"},
+
+    {L"\\d\\D\\s\\S\\w\\W",
+     L"cclass \"*0\"\n"
+     L"cclass \"*1\"\n"
+     L"cclass \"*2\"\n"
+     L"cclass \"*3\"\n"
+     L"cclass \"*4\"\n"
+     L"cclass \"*5\"\n"
+     L"match\n"},
+
+    {L"[\\d\\D\\s\\S\\w\\W]",
+     L"cclass \"*0*1*2*3*4*5\"\n"
+     L"match\n"},
 };
 
 int main (int argc, char* argv[])

@@ -3,6 +3,7 @@
 #include <memory>
 #include <utility>
 #include "t42wregex.hpp"
+#include <iostream>
 
 namespace t42 {
 namespace wpike {
@@ -43,13 +44,13 @@ class epsilon_closure {
 public:
     epsilon_closure (program const& e0, std::wstring const& s0)
         : e (e0), s (s0), gen (1), mark (e0.size (), 0) {}
-    bool advance (vmthread& th0, string_pointer sp0, int d);
+    bool advance (vmthread& th0, string_pointer const sp0, int const d);
 private:
     program const& e;
     std::wstring const& s;
     int gen;
     std::vector<int> mark;
-    void addthread (vmthread_que& q, vmthread&& th, string_pointer const sp, int d);
+    void addthread (vmthread_que& q, vmthread&& th, string_pointer const sp, int const d);
     bool cclass (std::wstring const& span, wchar_t const c) const;
     bool atwordbound (string_pointer const sp) const;
     bool isword (wchar_t const c) const;
@@ -58,7 +59,7 @@ private:
 
 // based on Russ Cox, ``Regular Expression Matching: the Virtual Machine Approach''
 //      http://swtch.com/~rsc/regexp/regexp2.html
-bool epsilon_closure::advance (vmthread& th0, string_pointer const sp0, int d)
+bool epsilon_closure::advance (vmthread& th0, string_pointer const sp0, int const d)
 {
     string_pointer match = false;
     vmthread_que run, rdy;
@@ -67,8 +68,8 @@ bool epsilon_closure::advance (vmthread& th0, string_pointer const sp0, int d)
         if (run.empty ())
             break;
         ++gen;
-        //  d > 0   "abc"."d"_"efg"     s[sp] == op.s[0]
-        //  d < 0   "abc"_"d"."efg"     s[sp-1] == op.s[0]
+        //  d > 0   "abc"|"d">"efg"     s[sp] == op.s[0]
+        //  d < 0   "abc"<"d"|"efg"     s[sp-1] == op.s[0]
         string_pointer sp1 = d > 0 ? sp : sp - 1;
         for (vmthread th : run) {
             int ct;
@@ -111,7 +112,7 @@ bool epsilon_closure::advance (vmthread& th0, string_pointer const sp0, int d)
     return match;
 }
 
-void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer const sp, int d)
+void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer const sp, int const d)
 {
     if (mark[th.ip] == gen)
         return;
@@ -188,17 +189,28 @@ void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer 
 
 bool epsilon_closure::cclass (std::wstring const& span, wchar_t const c) const
 {
-    for (auto p = span.begin (); p < span.end (); ++p) {
-        if (L'\\' == *p) {
+    static const std::vector<int> range{
+        'd',0,10,0, 'D',0,10,1, 's',38,44,0, 'S',38,44,1, 'w',0,38,0, 'W',0,38,1};
+    int i;
+    int n = c7toi (c);
+    for (auto p = span.begin (); p < span.end (); ++p)
+        switch (*p) {
+        case L'\\':
             if (c == *++p)
                 return true;
-        }
-        else {
-            if (p[-1] <= c && c <= p[2])
+            break;
+        case L'*':
+            i = (*++p - L'0') * 4;
+            if ((range[i + 1] <= n && n < range[i + 2]) ^ range[i + 3])
                 return true;
-            p += 2;
+            break;
+        case L'-':
+            if (L'\\' == p[-2] && L'\\' == p[1]) {
+                if (p[-1] <= c && c <= p[2])
+                    return true;
+                p += 2;
+            }
         }
-    }
     return false;
 }
 
@@ -211,9 +223,7 @@ bool epsilon_closure::atwordbound (string_pointer const sp) const
 
 bool epsilon_closure::isword (wchar_t const c) const
 {
-    static const std::wstring words (
-        L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
-    return c >= 128 || words.find (c) != std::wstring::npos;
+    return c >= 128 || c7toi (c) < 37;
 }
 
 // return > 0   continue backref comparison
@@ -230,16 +240,34 @@ int epsilon_closure::backref (vmthread const& th, string_pointer const sp, int d
     int const i2 = th.cap->at (n * 2 + 1);
     if (i1 < 0 || i1 >= i2 || ct >= i2 - i1)
         return -1;
-    // ct     0123456
-    // "abc "."backref"_" def"  s[i1 + ct]
+    // ct      0123456
+    // "abc "|"backref">" def"  s[i1 + ct]
     // ct       6543210
-    // "abc "_"backref"." def"  s[i2 - ct - 1]
+    // "abc "<"backref"|" def"  s[i2 - ct - 1]
     int const i = d > 0 ? i1 + ct : i2 - ct - 1;
     if (s[sp] != s[i])
         return -1;
     if (ct < i2 - i1 - 1)
         return ct + 1;
     return 0;
+}
+
+int c7toi (wchar_t c)
+{
+    static const std::wstring wdigit (L"0123456789");
+    static const std::wstring wupper (L"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    static const std::wstring wlower (L"abcdefghijklmnopqrstuvwxyz");
+    static const std::wstring wspace (L" \t\r\n\f\v");
+    std::wstring::size_type i;
+    if ((i = wdigit.find (c)) != std::wstring::npos)
+        return i;
+    if ((i = wupper.find (c)) != std::wstring::npos)
+        return i + 10;
+    if ((i = wlower.find (c)) != std::wstring::npos)
+        return i + 10;
+    if ((i = wspace.find (c)) != std::wstring::npos)
+        return i + 38;
+    return c >= 128 ? 36 : L'_' == c ? 37 : 44;
 }
 
 }//namespace wpike

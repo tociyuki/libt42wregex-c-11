@@ -21,11 +21,11 @@ private:
     bool interval (derivs_t& p, program& e);
     bool factor (derivs_t& p, program& e, int const d);
     bool group (derivs_t& p, program& e, int const d);
-    bool cclass (derivs_t& p, program& e);
-    bool regchar (derivs_t& p, wchar_t& c);
+    bool cclass (derivs_t& p, program& e) const;
+    bool clschar (derivs_t& p, std::wstring& s) const;
+    bool regchar (derivs_t& p, wchar_t& c) const;
     template<typename T>
-    bool digits (derivs_t& p, int const base, int const len, T& x);
-    int c7toi (wchar_t c);
+    bool digits (derivs_t& p, int const base, int const len, T& x) const;
 };
 
 bool vmcompiler::exp (derivs_t& p, program& e, int const d)
@@ -149,6 +149,7 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
     static const std::vector<operation> op1{ANY, BOL, EOL};
     static const std::wstring pat2 (L"ABbz");
     static const std::vector<operation> op2{BOS, NWORDB, WORDB, EOS};
+    static const std::wstring pat3 (L"dDsSwW");
     wchar_t c;
     std::wstring::size_type idx;
     if (L'(' == *p) {
@@ -167,6 +168,12 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
     }
     else if (L'\\' == *p && (idx = pat2.find (p[1])) != std::wstring::npos) {
         e.push_back (instruction (op2[idx]));
+        p += 2;
+    }
+    else if (L'\\' == *p && (idx = pat3.find (p[1])) != std::wstring::npos) {
+        std::wstring s (L"*");
+        s.push_back (L'0' + idx);
+        e.push_back (instruction (CCLASS, s));
         p += 2;
     }
     else if (L'\\' == *p
@@ -225,35 +232,52 @@ bool vmcompiler::group (derivs_t& p, program& e, int const d)
     return true;
 }
 
-bool vmcompiler::cclass (derivs_t& p, program& e)
+bool vmcompiler::cclass (derivs_t& p, program& e) const
 {
     wchar_t c;
     operation op = L'^' == *p ? NCCLASS : CCLASS;
     if (op == NCCLASS)
         ++p;
-    if (! regchar (p, c))
-        return false;
     std::wstring s;
-    s.push_back (L'\\');
-    s.push_back (c);
+    if (! clschar (p, s))
+        return false;
     while (L']' != *p) {
         if (L'-' == *p && L']' == *(p + 1))
-            c = *p++;
+            clschar (p, s);
         else {
             if (L'-' == *p)
                 s.push_back (*p++);
-            if ((L'-' == *p && L']' != *(p + 1)) || ! regchar (p, c))
+            if ((L'-' == *p && L']' != *(p + 1)))
+                return false;
+            if (! clschar (p, s))
                 return false;
         }
-        s.push_back (L'\\');
-        s.push_back (c);
     }
     ++p;
     e.push_back (instruction (op, s));
     return true;
 }
 
-bool vmcompiler::regchar (derivs_t& p, wchar_t& c)
+bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
+{
+    std::wstring::size_type idx;
+    static const std::wstring pat (L"dDsSwW");
+    wchar_t c;
+    if (L'\\' == *p && (idx = pat.find (p[1])) != std::wstring::npos) {
+        s.push_back (L'*');
+        s.push_back (L'0' + idx);
+        p += 2;
+    }
+    else if (regchar (p, c)) {
+        s.push_back (L'\\');
+        s.push_back (c);
+    }
+    else
+        return false;
+    return true;
+}
+
+bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
 {
     std::wstring::size_type idx;
     static const std::wstring pat1 (L"aeftnrv");
@@ -286,7 +310,7 @@ bool vmcompiler::regchar (derivs_t& p, wchar_t& c)
 }
 
 template<typename T>
-bool vmcompiler::digits (derivs_t& p, int const base, int const len, T& x)
+bool vmcompiler::digits (derivs_t& p, int const base, int const len, T& x) const
 {
     if (c7toi (*p) >= base)
         return false;
@@ -294,21 +318,6 @@ bool vmcompiler::digits (derivs_t& p, int const base, int const len, T& x)
     for (int i = 0; i < len && c7toi (*p) < base; i++)
         x = x * base + c7toi (*p++);
     return true;
-}
-
-int vmcompiler::c7toi (wchar_t ch)
-{
-    static const std::wstring wdigit (L"0123456789");
-    static const std::wstring wupper (L"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    static const std::wstring wlower (L"abcdefghijklmnopqrstuvwxyz");
-    std::wstring::size_type i;
-    if ((i = wdigit.find (ch)) != std::wstring::npos)
-        return i;
-    if ((i = wupper.find (ch)) != std::wstring::npos)
-        return i + 10;
-    if ((i = wlower.find (ch)) != std::wstring::npos)
-        return i + 10;
-    return 36;
 }
 
 }//namespace wpike

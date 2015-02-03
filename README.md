@@ -87,13 +87,23 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / '\\b'              # at word boundary
            / '\\B'              # not at word boundary
            / '\\' ([1-7] ![0-7] / [8-9])    # back reference
+           / '\\d'              # [0-9]
+           / '\\D'              # [^0-9]
+           / '\\w'              # [0-9A-Za-z_\x{80}-\x{10ffff}]
+           / '\\W'              # [^0-9A-Za-z_\x{80}-\x{10ffff}]
+           / '\\s'              # [ \t\r\n\f\v]
+           / '\\S'              # [^ \t\r\n\f\v]
            / char               # a character itself or an escaped character
-                                ## \d \D \w \W \s \S are not implemented
 
     cclass <- char '-' char cclass  # range of characters
-            / char cclass           # a character
-                                    ## \d \D \w \W \s \S are not implemented
-                                    ## [:XXX:] are not implemented
+           / char cclass        # a character
+           / '\\d'              # range 0-9
+           / '\\D'              # complement \d
+           / '\\w'              # range 0-9A-Za-z_\x{80}-\x{10ffff}
+           / '\\W'              # complement \w
+           / '\\s'              # range \ \t\r\n\f\v
+           / '\\S'              # complement \s
+                                ## [:XXX:] are not implemented
 
     char   <- '\\t'             # horizontal tab (\x09)
             / '\\n'             # new line       (\x0a)

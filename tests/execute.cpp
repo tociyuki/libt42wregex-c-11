@@ -569,12 +569,69 @@ void test25 (test::simple& ts)
     ts.ok (m1 == L"12", L"$1 == \"12\"");
 }
 
+void test26 (test::simple& ts)
+{
+    t42::wregex::capture_list m;
+    std::wstring s (L"0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_ \t\r\n\v\f!@#$%^&*()-+=|~");
+    t42::wregex re1 (L".*?(\\d+)");
+    std::wstring::size_type rc1 = re1.exec (s, m, 0);
+    ts.ok (rc1 == 10, L"qr/.*?(\\d+)/ =~ \"0123456789aA..\"");
+    ts.ok (s.substr (m[2], m[3] - m[2]) == L"0123456789", L"$1 \"0123456789\"");
+    t42::wregex re2 (L".*?(\\D+)");
+    std::wstring::size_type rc2 = re2.exec (s, m, 0);
+    ts.ok (rc2 == 84, L"qr/.*?(\\D+)/ =~ \"0123456789aA..\"");
+    ts.ok (s.substr (m[2], m[3] - m[2]) == L"aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_ \t\r\n\v\f!@#$%^&*()-+=|~", L"$1 \"aA..\"");
+    t42::wregex re3 (L".*?(\\w+)");
+    std::wstring::size_type rc3 = re3.exec (s, m, 0);
+    ts.ok (rc3 == 63, L"qr/.*?(\\w+)/ =~ \"0123456789aA..\"");
+    ts.ok (s.substr (m[2], m[3] - m[2]) == L"0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_", L"$1 \"0123456789Aa..\"");
+    t42::wregex re4 (L".*?(\\W+)");
+    std::wstring::size_type rc4 = re4.exec (s, m, 0);
+    ts.ok (rc4 == 84, L"qr/.*?(\\W+)/ =~ \"0123456789aA..\"");
+    ts.ok (s.substr (m[2], m[3] - m[2]) == L" \t\r\n\v\f!@#$%^&*()-+=|~", L"$1 \" \\t..\"");
+    std::wstring s5 (L" \t\r\n\v\f0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_!@#$%^&*()-+=|~");
+    t42::wregex re5 (L".*?(\\s+)");
+    std::wstring::size_type rc5 = re5.exec (s5, m, 0);
+    ts.ok (rc5 == 6, L"qr/.*?(\\s+)/ =~ \" \\t..\"");
+    ts.ok (s5.substr (m[2], m[3] - m[2]) == L" \t\r\n\v\f", L"$1 \" \\t..\"");
+    t42::wregex re6 (L".*?(\\S+)");
+    std::wstring::size_type rc6 = re6.exec (s5, m, 0);
+    ts.ok (rc6 == 84, L"qr/.*?(\\s+)/ =~ \" \\t..\"");
+    ts.ok (s5.substr (m[2], m[3] - m[2]) == L"0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_!@#$%^&*()-+=|~", L"$1 \"0123456789aA..\"");
+}
+
+void test27 (test::simple& ts)
+{
+    t42::wregex::capture_list m;
+    std::wstring s (L"0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_ \t\r\n\v\f!@#$%^&*()-+=|~");
+    t42::wregex re1 (L".*?([\\d]+)");
+    std::wstring::size_type rc1 = re1.exec (s, m, 0);
+    ts.ok (rc1 == 10, L"qr/.*?([\\d]+)/ =~ \"0123456789aA..\"");
+    ts.ok (s.substr (m[2], m[3] - m[2]) == L"0123456789", L"$1 \"0123456789\"");
+    t42::wregex re2 (L".*?([\\D]+)");
+    std::wstring::size_type rc2 = re2.exec (s, m, 0);
+    ts.ok (rc2 == 84, L"qr/.*?([\\D]+)/ =~ \"0123456789aA..\"");
+    ts.ok (s.substr (m[2], m[3] - m[2]) == L"aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_ \t\r\n\v\f!@#$%^&*()-+=|~", L"$1 \"aA..\"");
+    t42::wregex re3 (L".*?([\\w]+)");
+    std::wstring::size_type rc3 = re3.exec (s, m, 0);
+    ts.ok (rc3 == 63, L"qr/.*?([\\w]+)/ =~ \"0123456789aA..\"");
+    ts.ok (s.substr (m[2], m[3] - m[2]) == L"0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_", L"$1 \"0123456789Aa..\"");
+    t42::wregex re4 (L".*?([\\W]+)");
+    std::wstring::size_type rc4 = re4.exec (s, m, 0);
+    ts.ok (rc4 == 84, L"qr/.*?([\\W]+)/ =~ \"0123456789aA..\"");
+    ts.ok (s.substr (m[2], m[3] - m[2]) == L" \t\r\n\v\f!@#$%^&*()-+=|~", L"$1 \" \\t..\"");
+    t42::wregex re5 (L".*?([^\\W\\d]+)");
+    std::wstring::size_type rc5 = re5.exec (s, m, 0);
+    ts.ok (rc5 == 63, L"qr/.*?([^\\W\\d]+)/ =~ \"0123456789aA..\"");
+    ts.ok (s.substr (m[2], m[3] - m[2]) == L"aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_", L"$1 \"aAbB..zZ_\"");
+}
+
 int main (int argc, char* argv[])
 {
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (141);
+    test::simple ts (163);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -605,6 +662,8 @@ int main (int argc, char* argv[])
     test23n (ts);
     test24 (ts);
     test25 (ts);
+    test26 (ts);
+    test27 (ts);
     return ts.done_testing ();
 }
 
