@@ -11,16 +11,16 @@ typedef std::wstring::iterator derivs_t;
 
 class vmcompiler {
 public:
-    bool exp (derivs_t& p, program& e, int d);
+    bool exp (derivs_t& p, program& e, int const d);
 private:
     int mgroup;
     int mreg;
-    bool alt (derivs_t& p, program& e, int d);
-    bool cat (derivs_t& p, program& , int d);
-    bool term (derivs_t& p, program& e, int d);
+    bool alt (derivs_t& p, program& e, int const d);
+    bool cat (derivs_t& p, program& , int const d);
+    bool term (derivs_t& p, program& e, int const d);
     bool interval (derivs_t& p, program& e);
-    bool factor (derivs_t& p, program& e, int d);
-    bool group (derivs_t& p, program& e, int d);
+    bool factor (derivs_t& p, program& e, int const d);
+    bool group (derivs_t& p, program& e, int const d);
     bool cclass (derivs_t& p, program& e);
     bool regchar (derivs_t& p, wchar_t& c);
     template<typename T>
@@ -28,7 +28,7 @@ private:
     int c7toi (wchar_t c);
 };
 
-bool vmcompiler::exp (derivs_t& p, program& e, int d)
+bool vmcompiler::exp (derivs_t& p, program& e, int const d)
 {
     mgroup = 0;
     mreg = 0;
@@ -38,7 +38,7 @@ bool vmcompiler::exp (derivs_t& p, program& e, int d)
     return true;
 }
 
-bool vmcompiler::alt (derivs_t& p, program& e, int d)
+bool vmcompiler::alt (derivs_t& p, program& e, int const d)
 {
     std::vector<std::size_t> patch;
     program lhs;
@@ -64,7 +64,7 @@ bool vmcompiler::alt (derivs_t& p, program& e, int d)
     return true;
 }
 
-bool vmcompiler::cat (derivs_t& p, program& e, int d)
+bool vmcompiler::cat (derivs_t& p, program& e, int const d)
 {
     while (L'|' != *p && L')' != *p && L'\0' != *p) {
         program e1;
@@ -78,7 +78,7 @@ bool vmcompiler::cat (derivs_t& p, program& e, int d)
     return true;
 }
 
-bool vmcompiler::term (derivs_t& p, program& e, int d)
+bool vmcompiler::term (derivs_t& p, program& e, int const d)
 {
 auto p0 = p;
     program e1;
@@ -143,7 +143,7 @@ bool vmcompiler::interval (derivs_t& p, program& e)
     return true;
 }
 
-bool vmcompiler::factor (derivs_t& p, program& e, int d)
+bool vmcompiler::factor (derivs_t& p, program& e, int const d)
 {
     static const std::wstring pat1 (L".^$");
     static const std::vector<operation> op1{ANY, BOL, EOL};
@@ -172,7 +172,7 @@ bool vmcompiler::factor (derivs_t& p, program& e, int d)
     else if (L'\\' == *p
             && ((1 <= c7toi (p[1]) && c7toi (p[1]) < 8 && c7toi (p[2]) >= 8)
                 || (8 <= c7toi (p[1]) && c7toi (p[1]) < 10))) {
-        int r = mreg++;
+        int const r = mreg++;
         e.push_back (instruction (RESET, 0, 0, r));
         e.push_back (instruction (BKREF, c7toi (p[1]), 0, r));
         p += 2;
@@ -186,7 +186,7 @@ bool vmcompiler::factor (derivs_t& p, program& e, int d)
     return true;
 }
 
-bool vmcompiler::group (derivs_t& p, program& e, int d)
+bool vmcompiler::group (derivs_t& p, program& e, int const d)
 {
     operation op = SAVE;
     if (L'?' == *p) {
@@ -208,13 +208,13 @@ bool vmcompiler::group (derivs_t& p, program& e, int d)
             std::swap (n1, n2);
         e.push_back (instruction (SAVE, n1, 0, 0));
     }
-    int dot = e.size ();
+    int const dot = e.size ();
     if (LKAHEAD == op || NLKAHEAD == op || LKBEHIND == op || NLKBEHIND == op)
         e.push_back (instruction (op, 0, 0, 0));
-    d = (LKAHEAD == op  || NLKAHEAD == op)  ? +1
-      : (LKBEHIND == op || NLKBEHIND == op) ? -1
-      : d;
-    if (! (alt (p, e, d) && L')' == *p++))
+    int const d1 = (LKAHEAD == op  || NLKAHEAD == op)  ? +1
+                  : (LKBEHIND == op || NLKBEHIND == op) ? -1
+                  : d;
+    if (! (alt (p, e, d1) && L')' == *p++))
         return false;
     if (LKAHEAD == op || NLKAHEAD == op || LKBEHIND == op || NLKBEHIND == op) {
         e.push_back (instruction (MATCH, 0, 0, 0));
