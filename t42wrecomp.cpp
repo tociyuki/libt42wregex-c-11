@@ -306,6 +306,16 @@ bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
         else if (! digits (p, 16, 2, c))
             return false;
     }
+    else if (L'c' == c) {
+        if ((L'\0' <= *p && *p <= '\x1f') || '\x7f' == *p)
+            return false;
+        c = *p++ % 32;
+    }
+    else if (L'u' == c && c7toi (p[0]) < 16) {
+        derivs_t p0 = p;
+        if (! digits (p, 16, 4, c) || p - p0 != 4)
+            return false;
+    }
     return true;
 }
 

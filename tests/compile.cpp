@@ -537,6 +537,16 @@ struct testspec {
      L"char '1'\n"
      L"match\n"},
 
+    {L"\\cjk",
+     L"char '\\n'\n"
+     L"char 'k'\n"
+     L"match\n"},
+
+    {L"\\u00301",
+     L"char '0'\n"
+     L"char '1'\n"
+     L"match\n"},
+
     {L"[a]",
      L"cclass \"\\a\"\n"
      L"match\n"},

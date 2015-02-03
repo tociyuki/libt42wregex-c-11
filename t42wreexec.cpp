@@ -223,7 +223,7 @@ bool epsilon_closure::atwordbound (string_pointer const sp) const
 
 bool epsilon_closure::isword (wchar_t const c) const
 {
-    return c >= 128 || c7toi (c) < 37;
+    return c7toi (c) < 38;
 }
 
 // return > 0   continue backref comparison

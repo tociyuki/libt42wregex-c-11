@@ -115,6 +115,8 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
             / '\\' [0-7]([0-7][0-7]?)?      # byte character by octal digits
             / '\\x' [0-9a-fA-F][0-9a-fA-F]  # byte character by hex digits
             / '\\x{' [0-9a-fA-F]+ '}'       # code point by hex digits
+            / '\\c' .           # control letter
+            / '\\u' [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F] # code point
             / '\\' .            # wchar_t without control
             / .                 # wchar_t includes spaces
 
