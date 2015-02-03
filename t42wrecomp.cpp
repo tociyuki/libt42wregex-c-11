@@ -211,7 +211,9 @@ bool vmcompiler::group (derivs_t& p, program& e, int d)
     int dot = e.size ();
     if (LKAHEAD == op || NLKAHEAD == op || LKBEHIND == op || NLKBEHIND == op)
         e.push_back (instruction (op, 0, 0, 0));
-    d = (LKBEHIND == op || NLKBEHIND == op) ? -1 : d;
+    d = (LKAHEAD == op  || NLKAHEAD == op)  ? +1
+      : (LKBEHIND == op || NLKBEHIND == op) ? -1
+      : d;
     if (! (alt (p, e, d) && L')' == *p++))
         return false;
     if (LKAHEAD == op || NLKAHEAD == op || LKBEHIND == op || NLKBEHIND == op) {

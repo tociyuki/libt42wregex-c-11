@@ -10,7 +10,7 @@ std::wstring esc (std::wstring const& s)
 {
     std::wstring t;
     for (auto c : s) {
-        if (0x20 <= c && c < 0x7e)
+        if (0x20 <= c && c < 0x7f)
             t.push_back (c);
         else if (L'\t' == c)
             t += L"\\t";
@@ -556,12 +556,25 @@ void test24 (test::simple& ts)
     ts.ok (re22.exec (s22, m, 0) == 6, L"/.*?(abc)...(?<=\\1)/ =~ \"abcabc\"");
 }
 
+void test25 (test::simple& ts)
+{
+    t42::wregex re (L".*?((?<=_(?=[0-9][0-9]~))[0-9]+)");
+    std::wstring s (L"_12~");
+    t42::wregex::capture_list m;
+    std::wstring::size_type rc = re.exec (s, m, 0);
+    ts.ok (rc == 3, L"qr/.*?((?<=_(?=[0-9][0-9]~))[0-9]+)/ =~ \"_12\"_\"~\"");
+    std::wstring m0(s.begin () + m[0], s.begin () + m[1]);
+    ts.ok (m0 == L"_12", L"$0 == \"_12\"");
+    std::wstring m1(s.begin () + m[2], s.begin () + m[3]);
+    ts.ok (m1 == L"12", L"$1 == \"12\"");
+}
+
 int main (int argc, char* argv[])
 {
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (138);
+    test::simple ts (141);
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -591,6 +604,7 @@ int main (int argc, char* argv[])
     test23g (ts);
     test23n (ts);
     test24 (ts);
+    test25 (ts);
     return ts.done_testing ();
 }
 

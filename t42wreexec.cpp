@@ -146,7 +146,7 @@ void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer 
     case NLKAHEAD:
         {
             vmthread th1{op.x + th.ip + 1, th.cap, th.cnt};
-            if (advance (th1, sp, d) ^ (NLKAHEAD == op.opcode))
+            if (advance (th1, sp, +1) ^ (NLKAHEAD == op.opcode))
                 addthread (q, vmthread{op.y + th.ip + 1, th1.cap, th1.cnt}, sp, d);
         }
         break;

@@ -12,7 +12,7 @@ std::wstring esc (std::wstring const& s)
     for (auto c : s) {
         if (L'"' == c)
             t += L"\\\"";
-        else if (0x20 <= c && c < 0x7e)
+        else if (0x20 <= c && c < 0x7f)
             t.push_back (c);
         else if (L'\t' == c)
             t += L"\\t";
@@ -742,6 +742,24 @@ struct testspec {
      L"save 4\n"
      L"match\n"
      L"char 'c'\n"
+     L"save 3\n"
+     L"match\n"},
+
+    {L".*?((?<=_(?=[0-4][0-9]~))[0-9]+)",
+     L"split 2,0\n"
+     L"any\n"
+     L"jmp -3\n"
+     L"save 2\n"
+     L"lkbehind 0,7\n"
+     L"lkahead 0,4\n"
+     L"cclass \"\\0-\\4\"\n"
+     L"cclass \"\\0-\\9\"\n"
+     L"char '~'\n"
+     L"match\n"
+     L"char '_'\n"
+     L"match\n"
+     L"cclass \"\\0-\\9\"\n"
+     L"split -2,0\n"
      L"save 3\n"
      L"match\n"},
 };
