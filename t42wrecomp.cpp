@@ -112,26 +112,22 @@ bool vmcompiler::term (derivs_t& p, program& e, int const d)
 bool vmcompiler::interval (derivs_t& p, program& e)
 {
     int n1, n2;
-    derivs_t const p0 = p++;   // skip L'{'
-    if (! digits (p, 10, 8, n1)) {
-        p = p0;
-        return true;
-    }
+    derivs_t q = p + 1;     // skip L'{'
+    if (! digits (q, 10, 8, n1))
+        return true;        // backtrack for L"q{a}"
     n2 = n1;
-    if (L',' == *p) {
-        ++p;
+    if (L',' == *q) {
+        ++q;
         n2 = -1;
-        digits (p, 10, 8, n2);
+        digits (q, 10, 8, n2);
     }
-    if (L'}' != *p++) {
-        p = p0;
+    if (L'}' != *q++)
         return true;
-    }
+    bool const greedy = *q != L'?';
+    if (! greedy)
+        ++q;
     if (n2 != -1 && (n1 > n2 || n2 <= 0))
         return false;
-    bool const greedy = *p != L'?';
-    if (! greedy)
-        ++p;
     int const d = e.size ();
     int const r = mreg++;
     if (n1 == n2 || greedy)
@@ -141,6 +137,7 @@ bool vmcompiler::interval (derivs_t& p, program& e)
     e.insert (e.begin (), instruction (REP, n1, n2, r));
     e.insert (e.begin (), instruction (RESET, 0, 0, r));
     e.push_back (instruction (JMP, -(d + 3), 0, 0));
+    p = q;
     return true;
 }
 
@@ -241,15 +238,15 @@ bool vmcompiler::cclass (derivs_t& p, program& e) const
     if (op == NCCLASS)
         ++p;
     std::wstring s;
-    if (! clschar (p, s))
+    if (! clschar (p, s))   // []a] or [-a] trick
         return false;
     while (L']' != *p) {
-        if (L'-' == *p && L']' == *(p + 1))
+        if (L'-' == *p && L']' == *(p + 1))     // [a-] trick
             clschar (p, s);
         else {
             if (L'-' == *p)
                 s.push_back (*p++);
-            if ((L'-' == *p && L']' != *(p + 1)))
+            if ((L'-' == *p && L']' != *(p + 1)))   // [%--] trick
                 return false;
             if (! clschar (p, s))
                 return false;
@@ -263,7 +260,7 @@ bool vmcompiler::cclass (derivs_t& p, program& e) const
 bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
 {
     static const std::wstring pat (L"dswDSW");
-    static const std::wstring ccl (L"eilqux");
+    static const std::wstring ccl (L"eilqux");  // see posixname
     std::wstring::size_type i;
     wchar_t c;
     if (L'\\' == *p && (i = pat.find (p[1])) != std::wstring::npos) {
@@ -271,7 +268,7 @@ bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
         s.push_back (ccl[i]);
         p += 2;
     }
-    else if (L'[' == *p && L':' == p[1]) {
+    else if (L'[' == *p && L':' == p[1]) {  // [:posixname:]
         if (! posixname (p, s))
             return false;
     }

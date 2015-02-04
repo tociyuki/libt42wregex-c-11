@@ -8,23 +8,8 @@
 namespace t42 {
 namespace wpike {
 
-static int table_c7toi[256] = {
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
-    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36};
+static bool table_c7toi_ready = false;
+static int table_c7toi[256];
 
 int c7toi (wchar_t const c)
 {
@@ -32,10 +17,12 @@ int c7toi (wchar_t const c)
     static wchar_t const* upper = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     static wchar_t const* lower = L"abcdefghijklmnopqrstuvwxyz";
     int i;
-
     if (c <= 0 || c > 256)
         return 36;
-    if (table_c7toi[L'A'] != 10) {
+    if (! table_c7toi_ready) {
+        table_c7toi_ready = true;
+        for (i = 0; i < 256; ++i)
+            table_c7toi[i] = 36;
         for (i = 0; i < 10; ++i)
             table_c7toi[digit[i]] = i;
         for (i = 0; i < 26; ++i) {
@@ -115,7 +102,7 @@ private:
 };
 
 // based on Russ Cox, ``Regular Expression Matching: the Virtual Machine Approach''
-//      http://swtch.com/~rsc/regexp/regexp2.html
+//      http://swtch.com/~rsc/regexp/regexp2.html  Pike VM
 bool epsilon_closure::advance (vmthread& th0, string_pointer const sp0, int const d)
 {
     string_pointer match = false;
