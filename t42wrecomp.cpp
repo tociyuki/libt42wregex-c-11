@@ -390,6 +390,17 @@ int vmcompiler::c7toi (wchar_t c) const
 wregex::wregex (std::wstring s)
 {
     wpike::vmcompiler comp;
+    flag = 0;
+    s.push_back (L'\0');
+    std::wstring::iterator p = s.begin ();
+    if (! comp.exp (p, e, +1))
+        throw regex_error ();
+}
+
+wregex::wregex (std::wstring s, flag_type f)
+{
+    wpike::vmcompiler comp;
+    flag = f;
     s.push_back (L'\0');
     std::wstring::iterator p = s.begin ();
     if (! comp.exp (p, e, +1))

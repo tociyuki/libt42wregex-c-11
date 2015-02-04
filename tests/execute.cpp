@@ -648,12 +648,35 @@ void test28 (test::simple& ts)
     ts.ok (s.substr (m[2], m[3] - m[2]) == L"aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_", L"$1 \"aAbB..zZ_\"");
 }
 
+void test29 (test::simple& ts)
+{
+    t42::wregex::capture_list m;
+    t42::wregex re1 (L"FOO", t42::wregex::icase);
+    std::wstring s1 (L"foo");
+    std::wstring::size_type rc1 = re1.exec (s1, m, 0);
+    ts.ok (rc1 == 3, L"qr/FOO/i =~ \"foo\"_");
+
+    t42::wregex re2 (L"[F][O][O]", t42::wregex::icase);
+    std::wstring::size_type rc2 = re2.exec (s1, m, 0);
+    ts.ok (rc2 == 3, L"qr/[F][O][O]/i =~ \"foo\"_");
+
+    t42::wregex re3 (L"[A-Z]+", t42::wregex::icase);
+    std::wstring::size_type rc3 = re3.exec (s1, m, 0);
+    ts.ok (rc3 == 3, L"qr/[A-Z]+/i =~ \"foo\"_");
+
+    t42::wregex re4 (L"<([A-Z]+)>.*?</\\1>", t42::wregex::icase);
+    std::wstring s4 (L"<EM>emphasis</em>");
+    std::wstring::size_type rc4 = re4.exec (s4, m, 0);
+    ts.ok (rc4 == 17, L"qr/<([A-Z]+)>.*?</\\1>/i =~ \"<EM>emphasis</em>\"_");
+}
+
 int main (int argc, char* argv[])
 {
     std::locale::global (std::locale (""));
     std::wcout.imbue (std::locale (""));
 
-    test::simple ts (171);
+    test::simple ts (175);
+
     test1 (ts);
     test2 (ts);
     test3 (ts);
@@ -687,6 +710,7 @@ int main (int argc, char* argv[])
     test26 (ts);
     test27 (ts);
     test28 (ts);
+    test29 (ts);
     return ts.done_testing ();
 }
 

@@ -17,11 +17,11 @@ SYNOPSYS
         // t42::wregex uses cwctype functions, we must set global locale before use them.
         std::locale::global (std::locale (""));
         std::wcout.imbue (std::locale (""));
-
+    
         t42::wregex re (L"a(.*)c");     // pattern
         std::wstring s (L"abcdcecf");   // target string
         t42::wregex::capture_list m;    // capture position list
-        int rc = re.exec (s, m, 0);     // match from &s[0] with re
+        std::wstring::size_type rc = re.exec (s, m, 0); // match from &s[0] with re
         if (rc != std::wstring::npos) { // match &s[0] to &s[rc - 1]
             // $0 entire matched slice
             std::wstring m0(s.begin () + m[0], s.begin () + m[1]);
@@ -35,6 +35,15 @@ SYNOPSYS
         else {
             std::wcout << "not ok" << std::endl;
         }
+    
+        t42::wregex re1 (L"A([A-Z]*)C", t42::wregex::icase);  // ignore case
+        std::wstring s1 (L"abcdcecf");
+        std::wstring::size_type rc1 = re1.exec (s1, m, 0);
+        if (rc != std::wstring::npos)
+            std::wcout << "ok" << std::endl;
+        else
+            std::wcout << "not ok" << std::endl;
+    
         return EXIT_SUCCESS;
     }
 

@@ -35,12 +35,16 @@ class regex_error {};
 
 class wregex {
 public:
+    enum { icase = 1 };
+    typedef int flag_type;
     typedef wpike::capture_list capture_list;
     wregex (std::wstring pat);
+    wregex (std::wstring pat, flag_type f);
     std::wstring::size_type exec (std::wstring const s,
         capture_list& m, std::wstring::size_type const sp) const;
     wpike::program prog() { return e; }
 private:
+    flag_type flag;
     wpike::program e;
 };
 

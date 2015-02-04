@@ -42,10 +42,11 @@ typedef std::vector<vmthread> vmthread_que;
 
 class epsilon_closure {
 public:
-    epsilon_closure (program const& e0, std::wstring const& s0)
-        : e (e0), s (s0), gen (1), mark (e0.size (), 0) {}
+    epsilon_closure (program const& e0, std::wstring const& s0, t42::wregex::flag_type f)
+        : e (e0), s (s0), flag (f), gen (1), mark (e0.size (), 0) {}
     bool advance (vmthread& th0, string_pointer const sp0, int const d);
 private:
+    t42::wregex::flag_type flag;
     program const& e;
     std::wstring const& s;
     int gen;
@@ -54,6 +55,25 @@ private:
     bool cclass (std::wstring const& span, wchar_t const c) const;
     bool atwordbound (string_pointer const sp) const;
     int backref (vmthread const& th, string_pointer const sp, int d) const;
+
+    bool wchar_equal (wchar_t c0, wchar_t c1) const
+    {
+        if (flag & t42::wregex::icase) {
+            c0 = std::towlower (c0);
+            c1 = std::towlower (c1);
+        }
+        return c0 == c1;
+    }
+
+    bool wchar_between (wchar_t c, wchar_t from, wchar_t to) const
+    {
+        if (flag & t42::wregex::icase) {
+            c = std::towlower (c);
+            from = std::towlower (from);
+            to = std::towlower (to);
+        }
+        return from <= c && c <= to;
+    }
 };
 
 // based on Russ Cox, ``Regular Expression Matching: the Virtual Machine Approach''
@@ -75,7 +95,7 @@ bool epsilon_closure::advance (vmthread& th0, string_pointer const sp0, int cons
             instruction op = e[th.ip];
             switch (op.opcode) {
             case CHAR:
-                if (sp1 < s.size () && s[sp1] == op.s[0])
+                if (sp1 < s.size () && wchar_equal (s[sp1], op.s[0]))
                     addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + d, d);
                 break;
             case ANY:
@@ -202,7 +222,7 @@ bool epsilon_closure::cclass (std::wstring const& span, wchar_t const c) const
     for (auto p = span.begin (); p < span.end (); ++p)
         switch (*p) {
         case L'\\':
-            if (c == *++p)
+            if (wchar_equal (c, *++p))
                 return true;
             break;
         case L':':
@@ -214,7 +234,7 @@ bool epsilon_closure::cclass (std::wstring const& span, wchar_t const c) const
             break;
         case L'-':
             if (L'\\' == p[-2] && L'\\' == p[1]) {
-                if (p[-1] <= c && c <= p[2])
+                if (wchar_between (c, p[-1], p[2]))
                     return true;
                 p += 2;
             }
@@ -248,7 +268,7 @@ int epsilon_closure::backref (vmthread const& th, string_pointer const sp, int d
     // ct       6543210
     // "abc "<"backref"|" def"  s[i2 - ct - 1]
     int const i = d > 0 ? i1 + ct : i2 - ct - 1;
-    if (s[sp] != s[i])
+    if (! wchar_equal (s[sp], s[i]))
         return -1;
     if (ct < i2 - i1 - 1)
         return ct + 1;
@@ -261,7 +281,7 @@ std::wstring::size_type wregex::exec (std::wstring const s,
     wpike::capture_list& m, std::wstring::size_type const sp) const
 {
     enum { START = 0 };
-    wpike::epsilon_closure vm (e, s);
+    wpike::epsilon_closure vm (e, s, flag);
     wpike::vmthread th{
         START,
         std::make_shared<wpike::capture_list> (2, sp),
