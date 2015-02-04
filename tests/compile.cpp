@@ -26,8 +26,6 @@ std::wstring esc (std::wstring const& s)
             t += L"\\n";
         else if (L'\v' == c)
             t += L"\\v";
-        else if (0x1b == c)
-            t += L"\\e";
         else if (0 <= c && c < 256) {
             unsigned int hi = (c >> 4) & 0x0f;
             unsigned int lo = c & 0x0f;
@@ -447,10 +445,6 @@ struct testspec {
 
     {L"\\a",
      L"char '\\a'\n"
-     L"match\n"},
-
-    {L"\\e",
-     L"char '\\e'\n"
      L"match\n"},
 
     {L"\\f",

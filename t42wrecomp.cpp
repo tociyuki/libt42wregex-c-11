@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <utility>
+#include <cwctype>
 #include "t42wregex.hpp"
 
 namespace t42 {
@@ -27,7 +28,6 @@ private:
     bool regchar (derivs_t& p, wchar_t& c) const;
     template<typename T>
     bool digits (derivs_t& p, int const base, int const len, T& x) const;
-    int c7toi (wchar_t c) const;
 };
 
 bool vmcompiler::exp (derivs_t& p, program& e, int const d)
@@ -129,7 +129,7 @@ bool vmcompiler::interval (derivs_t& p, program& e)
     }
     if (n2 != -1 && (n1 > n2 || n2 <= 0))
         return false;
-    bool const greedy = *p != L'\x3f';
+    bool const greedy = *p != L'?';
     if (! greedy)
         ++p;
     int const d = e.size ();
@@ -286,6 +286,7 @@ bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
 
 bool vmcompiler::posixname (derivs_t& p, std::wstring& s) const
 {
+    static const std::wstring lower (L"abcdefghijklmnopqrstuvwxyz");
     static const std::wstring ctname (
         L"alnum   alpha   blank   cntrl   digit   graph   lower   print   "
         L"space   upper   xdigit  word    ^alnum  ^alpha  ^blank  ^cntrl  "
@@ -312,21 +313,21 @@ bool vmcompiler::posixname (derivs_t& p, std::wstring& s) const
     if (i == std::wstring::npos)
         return false;
     s.push_back (L':');
-    s.push_back (L'a' + i / 8);
+    s.push_back (lower[i / 8]);
     return true;
 }
 
 bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
 {
     std::wstring::size_type idx;
-    static const std::wstring pat1 (L"aeftnrv");
-    static const std::wstring val1 (L"\a\x1b\f\t\n\r\v");
-    if ((L'\0' <= *p && *p <= '\x1f') || '\x7f' == *p)
+    static const std::wstring pat1 (L"aftnrv");
+    static const std::wstring val1 (L"\a\f\t\n\r\v");
+    if (std::iswcntrl (*p))
         return false;
     c = *p++;
     if (L'\\' != c)
         return true;
-    if ((L'\0' <= *p && *p <= '\x1f') || '\x7f' == *p)
+    if (std::iswcntrl (*p))
         return false;
     c = *p++;
     if ((idx = pat1.find (c)) != std::wstring::npos)
@@ -346,7 +347,7 @@ bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
             return false;
     }
     else if (L'c' == c) {
-        if ((L'\0' <= *p && *p <= '\x1f') || '\x7f' == *p)
+        if (std::iswcntrl (*p))
             return false;
         c = *p++ % 32;
     }
@@ -368,21 +369,6 @@ bool vmcompiler::digits (derivs_t& p, int const base, int const len, T& x) const
     for (int i = 0; i < len && c7toi (*p) < base; i++)
         x = x * base + c7toi (*p++);
     return true;
-}
-
-int vmcompiler::c7toi (wchar_t c) const
-{
-    static const std::wstring wdigit (L"0123456789");
-    static const std::wstring wupper (L"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    static const std::wstring wlower (L"abcdefghijklmnopqrstuvwxyz");
-    std::wstring::size_type i;
-    if ((i = wdigit.find (c)) != std::wstring::npos)
-        return i;
-    if ((i = wupper.find (c)) != std::wstring::npos)
-        return i + 10;
-    if ((i = wlower.find (c)) != std::wstring::npos)
-        return i + 10;
-    return 36;
 }
 
 }//namespace wpike

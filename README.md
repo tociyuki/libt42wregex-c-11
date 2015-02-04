@@ -125,13 +125,13 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / '[:d:]' / '[:^d:]  # alias of [:digit:], [:^digit:] respectively
            / '[:s:]' / '[:^s:]  # alias of [:space:], [:^space:] respectively
 
-    char   <- '\\t'             # horizontal tab (\x09)
-            / '\\n'             # new line       (\x0a)
-            / '\\r'             # carrige return (\x0d)
-            / '\\f'             # form feed      (\x0c)
-            / '\\v'             # virtical tab   (\x0b)
-            / '\\a'             # alarm bell     (\x07)
-            / '\\e'             # escape         (\x1b)
+    char   <- '\\t'             # horizontal tab (\t)
+            / '\\n'             # new line       (\n)
+            / '\\r'             # carrige return (\r)
+            / '\\f'             # form feed      (\f)
+            / '\\v'             # virtical tab   (\v)
+            / '\\a'             # alarm bell     (\a)
+                                ## not implement \e \x1b, use \c[
             / '\\' [0-7]([0-7]([0-7][0-7]?)?)? # byte character by octal digits
             / '\\x' [0-9a-fA-F][0-9a-fA-F]  # byte character by hex digits
             / '\\x{' [0-9a-fA-F]+ '}'       # code point by hex digits

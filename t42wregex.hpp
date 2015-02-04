@@ -29,6 +29,8 @@ struct instruction {
 typedef std::vector<instruction> program;
 typedef std::vector<std::wstring::size_type> capture_list;
 
+int c7toi (wchar_t const c);
+
 }//namespace wpike
 
 class regex_error {};

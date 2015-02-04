@@ -8,6 +8,44 @@
 namespace t42 {
 namespace wpike {
 
+static int table_c7toi[256] = {
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36};
+
+int c7toi (wchar_t const c)
+{
+    static wchar_t const* digit = L"0123456789";
+    static wchar_t const* upper = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static wchar_t const* lower = L"abcdefghijklmnopqrstuvwxyz";
+    int i;
+
+    if (c <= 0 || c > 256)
+        return 36;
+    if (table_c7toi[L'A'] != 10) {
+        for (i = 0; i < 10; ++i)
+            table_c7toi[digit[i]] = i;
+        for (i = 0; i < 26; ++i) {
+            table_c7toi[upper[i]] = i + 10;
+            table_c7toi[lower[i]] = i + 10;
+        }
+    }
+    return table_c7toi[c];
+}
+
 typedef std::size_t instruction_pointer;
 typedef std::wstring::size_type string_pointer;
 typedef std::shared_ptr<capture_list> capture_ptr;
@@ -226,7 +264,7 @@ bool epsilon_closure::cclass (std::wstring const& span, wchar_t const c) const
                 return true;
             break;
         case L':':
-            i = *++p - L'a';
+            i = c7toi (*++p) - 10;
             v = i >= niswfunc;
             i = i % niswfunc;
             if ((iswfunc[i] (c) != 0) ^ v) // iswxxxxx returns int not bool
