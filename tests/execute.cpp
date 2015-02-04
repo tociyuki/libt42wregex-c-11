@@ -596,7 +596,7 @@ void test26 (test::simple& ts)
     ts.ok (s5.substr (m[2], m[3] - m[2]) == L" \t\r\n\v\f", L"$1 \" \\t..\"");
     t42::wregex re6 (L".*?(\\S+)");
     std::wstring::size_type rc6 = re6.exec (s5, m, 0);
-    ts.ok (rc6 == 84, L"qr/.*?(\\s+)/ =~ \" \\t..\"");
+    ts.ok (rc6 == 84, L"qr/.*?(\\S+)/ =~ \" \\t..\"");
     ts.ok (s5.substr (m[2], m[3] - m[2]) == L"0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_!@#$%^&*()-+=|~", L"$1 \"0123456789aA..\"");
 }
 

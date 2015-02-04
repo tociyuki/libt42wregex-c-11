@@ -29,8 +29,6 @@ struct instruction {
 typedef std::vector<instruction> program;
 typedef std::vector<std::wstring::size_type> capture_list;
 
-int c7toi (wchar_t c);
-
 }//namespace wpike
 
 class regex_error {};
@@ -40,7 +38,7 @@ public:
     typedef wpike::capture_list capture_list;
     wregex (std::wstring pat);
     std::wstring::size_type exec (std::wstring const s,
-        capture_list& m, std::wstring::size_type const sp, char const* lc = "") const;
+        capture_list& m, std::wstring::size_type const sp) const;
     wpike::program prog() { return e; }
 private:
     wpike::program e;

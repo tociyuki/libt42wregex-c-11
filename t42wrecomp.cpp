@@ -27,6 +27,7 @@ private:
     bool regchar (derivs_t& p, wchar_t& c) const;
     template<typename T>
     bool digits (derivs_t& p, int const base, int const len, T& x) const;
+    int c7toi (wchar_t c) const;
 };
 
 bool vmcompiler::exp (derivs_t& p, program& e, int const d)
@@ -149,7 +150,8 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
     static const std::vector<operation> op1{ANY, BOL, EOL};
     static const std::wstring pat2 (L"ABbz");
     static const std::vector<operation> op2{BOS, NWORDB, WORDB, EOS};
-    static const std::wstring pat3 (L"dDsSwW");
+    static const std::wstring pat3 (L"dswDSW");
+    static const std::wstring ccl3 (L"eilqux");
     wchar_t c;
     std::wstring::size_type idx;
     if (L'(' == *p) {
@@ -171,8 +173,8 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
         p += 2;
     }
     else if (L'\\' == *p && (idx = pat3.find (p[1])) != std::wstring::npos) {
-        std::wstring s (L"*");
-        s.push_back (L'0' + idx);
+        std::wstring s (L":");
+        s.push_back (ccl3[idx]);
         e.push_back (instruction (CCLASS, s));
         p += 2;
     }
@@ -260,12 +262,13 @@ bool vmcompiler::cclass (derivs_t& p, program& e) const
 
 bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
 {
-    static const std::wstring pat (L"dDsSwW");
-    std::wstring::size_type idx;
+    static const std::wstring pat (L"dswDSW");
+    static const std::wstring ccl (L"eilqux");
+    std::wstring::size_type i;
     wchar_t c;
-    if (L'\\' == *p && (idx = pat.find (p[1])) != std::wstring::npos) {
-        s.push_back (L'*');
-        s.push_back (L'0' + idx);
+    if (L'\\' == *p && (i = pat.find (p[1])) != std::wstring::npos) {
+        s.push_back (L':');
+        s.push_back (ccl[i]);
         p += 2;
     }
     else if (L'[' == *p && L':' == p[1]) {
@@ -285,8 +288,11 @@ bool vmcompiler::posixname (derivs_t& p, std::wstring& s) const
 {
     static const std::wstring ctname (
         L"alnum   alpha   blank   cntrl   digit   graph   lower   print   "
-        L"space   upper   xdigit  ^alnum  ^alpha  ^blank  ^cntrl  ^digit  "
-        L"^graph  ^lower  ^print  ^space  ^upper  ^xdigit ");
+        L"space   upper   xdigit  word    ^alnum  ^alpha  ^blank  ^cntrl  "
+        L"^digit  ^graph  ^lower  ^print  ^space  ^upper  ^xdigit ^word   ");
+    static const std::vector<std::wstring> ctalias{
+        L"d", L"digit", L"^d", L"^digit", L"s", L"space", L"^s", L"^space",
+        L"w", L"word",  L"^w", L"^word"};
     p += 2;
     auto p0 = p;
     if (L'^' == *p)
@@ -297,6 +303,11 @@ bool vmcompiler::posixname (derivs_t& p, std::wstring& s) const
     if (p1 - p0 <= 0 || L':' != *p++ || L']' != *p++)
         return false;
     std::wstring name (p0, p1);
+    for (int j = 0; j < ctalias.size (); j += 2)
+        if (name == ctalias[j]) {
+            name = ctalias[j + 1];
+            break;
+        }
     std::wstring::size_type i = ctname.find (name);
     if (i == std::wstring::npos)
         return false;
@@ -357,6 +368,21 @@ bool vmcompiler::digits (derivs_t& p, int const base, int const len, T& x) const
     for (int i = 0; i < len && c7toi (*p) < base; i++)
         x = x * base + c7toi (*p++);
     return true;
+}
+
+int vmcompiler::c7toi (wchar_t c) const
+{
+    static const std::wstring wdigit (L"0123456789");
+    static const std::wstring wupper (L"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    static const std::wstring wlower (L"abcdefghijklmnopqrstuvwxyz");
+    std::wstring::size_type i;
+    if ((i = wdigit.find (c)) != std::wstring::npos)
+        return i;
+    if ((i = wupper.find (c)) != std::wstring::npos)
+        return i + 10;
+    if ((i = wlower.find (c)) != std::wstring::npos)
+        return i + 10;
+    return 36;
 }
 
 }//namespace wpike

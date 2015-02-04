@@ -612,20 +612,36 @@ struct testspec {
      L"cclass \"\\%-\\-\"\n"
      L"match\n"},
 
-    {L"[[:alnum:][:alpha:][:blank:][:cntrl:][:digit:][:graph:][:lower:]]",
-     L"cclass \":a:b:c:d:e:f:g\"\n"
+    {L"[[:alnum:][:alpha:][:blank:][:cntrl:]]",
+     L"cclass \":a:b:c:d\"\n"
      L"match\n"},
 
-    {L"[[:print:][:space:][:upper:][:xdigit:][:^alnum:][:^alpha:][:^blank:]]",
-     L"cclass \":h:i:j:k:l:m:n\"\n"
+    {L"[[:digit:][:graph:][:lower:][:print:]]",
+     L"cclass \":e:f:g:h\"\n"
      L"match\n"},
 
-    {L"[[:^cntrl:][:^digit:][:^graph:][:^lower:][:^print:][:^space:][:^upper:]]",
-     L"cclass \":o:p:q:r:s:t:u\"\n"
+    {L"[[:space:][:upper:][:xdigit:][:word:]]",
+     L"cclass \":i:j:k:l\"\n"
      L"match\n"},
 
-    {L"[[:^xdigit:]]",
-     L"cclass \":v\"\n"
+    {L"[[:d:][:s:][:w:]]",
+     L"cclass \":e:i:l\"\n"
+     L"match\n"},
+
+    {L"[[:^alnum:][:^alpha:][:^blank:][:^cntrl:]]",
+     L"cclass \":m:n:o:p\"\n"
+     L"match\n"},
+
+    {L"[[:^digit:][:^graph:][:^lower:][:^print:]]",
+     L"cclass \":q:r:s:t\"\n"
+     L"match\n"},
+
+    {L"[[:^space:][:^upper:][:^xdigit:][:^word:]]",
+     L"cclass \":u:v:w:x\"\n"
+     L"match\n"},
+
+    {L"[[:^d:][:^s:][:^w:]]",
+     L"cclass \":q:u:x\"\n"
      L"match\n"},
 
     {L"[[]",
@@ -794,17 +810,17 @@ struct testspec {
      L"save 3\n"
      L"match\n"},
 
-    {L"\\d\\D\\s\\S\\w\\W",
-     L"cclass \"*0\"\n"
-     L"cclass \"*1\"\n"
-     L"cclass \"*2\"\n"
-     L"cclass \"*3\"\n"
-     L"cclass \"*4\"\n"
-     L"cclass \"*5\"\n"
+    {L"\\d\\s\\w\\D\\S\\W",
+     L"cclass \":e\"\n"
+     L"cclass \":i\"\n"
+     L"cclass \":l\"\n"
+     L"cclass \":q\"\n"
+     L"cclass \":u\"\n"
+     L"cclass \":x\"\n"
      L"match\n"},
 
-    {L"[\\d\\D\\s\\S\\w\\W]",
-     L"cclass \"*0*1*2*3*4*5\"\n"
+    {L"[\\d\\s\\w\\D\\S\\W]",
+     L"cclass \":e:i:l:q:u:x\"\n"
      L"match\n"},
 };
 

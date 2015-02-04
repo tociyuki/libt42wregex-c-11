@@ -2,7 +2,6 @@
 #include <string>
 #include <memory>
 #include <utility>
-#include <clocale>
 #include <cwctype>
 #include "t42wregex.hpp"
 
@@ -54,7 +53,6 @@ private:
     void addthread (vmthread_que& q, vmthread&& th, string_pointer const sp, int const d);
     bool cclass (std::wstring const& span, wchar_t const c) const;
     bool atwordbound (string_pointer const sp) const;
-    bool isword (wchar_t const c) const;
     int backref (vmthread const& th, string_pointer const sp, int d) const;
 };
 
@@ -188,36 +186,30 @@ void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer 
     }
 }
 
+int iswword (std::wint_t c)
+{
+    return (iswalnum (c) != 0) || L'_' == c;
+}
+
 bool epsilon_closure::cclass (std::wstring const& span, wchar_t const c) const
 {
-    static const std::vector<int> range{
-        'd',0,10,0, 'D',0,10,1, 's',38,44,0, 'S',38,44,1, 'w',0,38,0, 'W',0,38,1};
-    static const std::vector<std::string> ctname{
-        "alnum", "alpha", "blank", "cntrl", "digit", "graph",
-        "lower", "print", "space", "upper", "xdigit"};
-    static std::vector<std::wctype_t> ctident;
-    if (ctident.empty ()) {
-        for (auto x : ctname)
-            ctident.push_back (wctype (x.c_str ()));
-    }
+    static int (* const iswfunc[]) (std::wint_t) = {
+        std::iswalnum, std::iswalpha, std::iswblank, std::iswcntrl,
+        std::iswdigit, std::iswgraph, std::iswlower, std::iswprint,
+        std::iswspace, std::iswupper, std::iswxdigit, iswword};
+    int const niswfunc = sizeof (iswfunc) / sizeof (iswfunc[0]);
     int i, v;
-    int n = c7toi (c);
     for (auto p = span.begin (); p < span.end (); ++p)
         switch (*p) {
         case L'\\':
             if (c == *++p)
                 return true;
             break;
-        case L'*':
-            i = (*++p - L'0') * 4;
-            if ((range[i + 1] <= n && n < range[i + 2]) ^ range[i + 3])
-                return true;
-            break;
         case L':':
             i = *++p - L'a';
-            v = i >= ctident.size ();
-            i = v ? i - ctident.size () : i;
-            if (std::iswctype (c, ctident.at (i)) ^ v)
+            v = i >= niswfunc;
+            i = i % niswfunc;
+            if ((iswfunc[i] (c) != 0) ^ v) // iswxxxxx returns int not bool
                 return true;
             break;
         case L'-':
@@ -234,12 +226,7 @@ bool epsilon_closure::atwordbound (string_pointer const sp) const
 {
     wchar_t c0 = sp - 1 < s.size () ? s[sp - 1] : L' ';
     wchar_t c1 = sp < s.size () ? s[sp] : L' ';
-    return isword (c0) ^ isword(c1) ? true : false;
-}
-
-bool epsilon_closure::isword (wchar_t const c) const
-{
-    return c7toi (c) < 38;
+    return iswword (c0) ^ iswword(c1);
 }
 
 // return > 0   continue backref comparison
@@ -268,31 +255,12 @@ int epsilon_closure::backref (vmthread const& th, string_pointer const sp, int d
     return 0;
 }
 
-int c7toi (wchar_t c)
-{
-    static const std::wstring wdigit (L"0123456789");
-    static const std::wstring wupper (L"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    static const std::wstring wlower (L"abcdefghijklmnopqrstuvwxyz");
-    static const std::wstring wspace (L" \t\r\n\f\v");
-    std::wstring::size_type i;
-    if ((i = wdigit.find (c)) != std::wstring::npos)
-        return i;
-    if ((i = wupper.find (c)) != std::wstring::npos)
-        return i + 10;
-    if ((i = wlower.find (c)) != std::wstring::npos)
-        return i + 10;
-    if ((i = wspace.find (c)) != std::wstring::npos)
-        return i + 38;
-    return c >= 128 ? 36 : L'_' == c ? 37 : 44;
-}
-
 }//namespace wpike
 
 std::wstring::size_type wregex::exec (std::wstring const s,
-    wpike::capture_list& m, std::wstring::size_type const sp, char const* lc) const
+    wpike::capture_list& m, std::wstring::size_type const sp) const
 {
     enum { START = 0 };
-    char const* const saved_lc = std::setlocale (LC_CTYPE, lc);
     wpike::epsilon_closure vm (e, s);
     wpike::vmthread th{
         START,
@@ -302,7 +270,6 @@ std::wstring::size_type wregex::exec (std::wstring const s,
     bool x = vm.advance (th, sp, +1);
     m.clear ();
     m.insert (m.begin (), th.cap->begin (), th.cap->end ());
-    std::setlocale (LC_CTYPE, saved_lc);
     return x ? m[1] : std::wstring::npos;
 }
 

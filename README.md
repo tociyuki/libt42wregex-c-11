@@ -14,6 +14,7 @@ SYNOPSYS
 
     int main ()
     {
+        // t42::wregex uses cwctype functions, we must set global locale before use them.
         std::locale::global (std::locale (""));
         std::wcout.imbue (std::locale (""));
 
@@ -87,29 +88,33 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / '\\b'              # at word boundary
            / '\\B'              # not at word boundary
            / '\\' ([1-7] ![0-7] / [8-9])    # back reference
-           / '\\d'              # [0-9]
-           / '\\D'              # [^0-9]
-           / '\\w'              # [0-9A-Za-z_\x{80}-\x{10ffff}]
-           / '\\W'              # [^0-9A-Za-z_\x{80}-\x{10ffff}]
-           / '\\s'              # [ \t\r\n\f\v]
-           / '\\S'              # [^ \t\r\n\f\v]
+           / '\\d'              # same as [[:digit:]]
+           / '\\D'              # same as [^[:digit:]]
+           / '\\w'              # same as [_[:alnum:]]
+           / '\\W'              # same as [^_[:alnum:]]
+           / '\\s'              # same as [[:space:]]
+           / '\\S'              # same as [^[:space:]]
            / char               # a character itself or an escaped character
 
     cclass <- char '-' char cclass  # range of characters
            / char cclass        # a character
-           / '\\d'              # range 0-9
-           / '\\D'              # complement \d
-           / '\\w'              # range 0-9A-Za-z_\x{80}-\x{10ffff}
-           / '\\W'              # complement \w
-           / '\\s'              # range \ \t\r\n\f\v
-           / '\\S'              # complement \s
+           / '\\d'              # [:digit:]
+           / '\\D'              # [:^digit:]
+           / '\\w'              # [:word:]
+           / '\\W'              # [:^word:]
+           / '\\s'              # [:space:]
+           / '\\S'              # [:^space:]
            / '[:alnum:]' / '[:alpha:]' / '[:lower:]' / '[:upper:]'
            / '[:digit:]' / '[:blank:]' / '[:cntrl:]' / '[:graph:]'
            / '[:print:]' / '[:space:]' / '[:xdigit:]'
            / '[:^alnum:]' / '[:^alpha:]' / '[:^lower:]' / '[:^upper:]'
            / '[:^digit:]' / '[:^blank:]' / '[:^cntrl:]' / '[:^graph:]'
            / '[:^print:]' / '[:^space:]' / '[:^xdigit:]'
-                                # std::iswctype names depended LC_CTYPE
+                                # std::iswctype names depended on LC_CTYPE
+           / '[:w:]' / '[:word:]'   # sameas _[:alnum:]
+           / '[:^w:]' / '[:^word:]' # complement of [:word:]
+           / '[:d:]' / '[:^d:]  # alias of [:digit:], [:^digit:] respectively
+           / '[:s:]' / '[:^s:]  # alias of [:space:], [:^space:] respectively
 
     char   <- '\\t'             # horizontal tab (\x09)
             / '\\n'             # new line       (\x0a)
