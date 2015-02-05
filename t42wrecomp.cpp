@@ -24,7 +24,9 @@ private:
     bool group (derivs_t& p, program& e, int const d);
     bool cclass (derivs_t& p, program& e) const;
     bool clschar (derivs_t& p, std::wstring& s) const;
-    bool posixname (derivs_t& p, std::wstring& s) const;
+    bool check_posixname (derivs_t p) const;
+    bool scan_posixname (derivs_t& p) const;
+    bool set_posixname (derivs_t p0, derivs_t p1, std::wstring& s) const;
     bool regchar (derivs_t& p, wchar_t& c) const;
     template<typename T>
     bool digits (derivs_t& p, int const base, int const len, T& x) const;
@@ -151,19 +153,8 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
     static const std::wstring ccl3 (L"eilqux");
     wchar_t c;
     std::wstring::size_type idx;
-    if (L'?' == *p || L'*' == *p || L'+' == *p)
+    if (L'?' == *p || L'*' == *p || L'+' == *p || check_posixname (p))
         return false;
-    else if (L'[' == *p && L':' == p[1]) {
-        derivs_t q = p + 2;
-        if (L'^' == *q)
-            ++q;
-        if (c7toi (*q) < 36) {
-            while (c7toi (*q) < 36)
-                ++q;
-            if (L':' == *q && L']' == p[1])
-                return false;
-        }
-    }
     if (L'(' == *p) {
         ++p;
         if (! group (p, e, d))
@@ -251,18 +242,17 @@ bool vmcompiler::cclass (derivs_t& p, program& e) const
     std::wstring s;
     if (! clschar (p, s))   // []a] or [-a] trick
         return false;
-    while (L']' != *p) {
+    while (L']' != *p)
         if (L'-' == *p && L']' == *(p + 1))     // [a-] trick
             clschar (p, s);
         else {
             if (L'-' == *p)
                 s.push_back (*p++);
-            if ((L'-' == *p && L']' != *(p + 1)))   // [%--] trick
+            if (L'-' == *p && L']' != *(p + 1))   // [%--] trick
                 return false;
             if (! clschar (p, s))
                 return false;
         }
-    }
     ++p;
     e.push_back (instruction (op, s));
     return true;
@@ -280,7 +270,8 @@ bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
         p += 2;
     }
     else if (L'[' == *p && L':' == p[1]) {  // [:posixname:]
-        if (! posixname (p, s))
+        derivs_t p0 = p + 2;
+        if (! (scan_posixname (p) && set_posixname (p0, p - 2, s)))
             return false;
     }
     else if (regchar (p, c)) {
@@ -292,7 +283,25 @@ bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
     return true;
 }
 
-bool vmcompiler::posixname (derivs_t& p, std::wstring& s) const
+bool vmcompiler::check_posixname (derivs_t p) const
+{
+    return scan_posixname (p);
+}
+
+bool vmcompiler::scan_posixname (derivs_t& p) const
+{
+    if (! (L'[' == *p && L':' == p[1]))
+        return false;
+    p += 2;
+    if (L'^' == *p)
+        ++p;
+    auto p0 = p;
+    while (c7toi (*p) < 36)
+        ++p;
+    return p - p0 > 0 && L':' == *p++ && L']' == *p++;
+}
+
+bool vmcompiler::set_posixname (derivs_t p0, derivs_t p1, std::wstring& s) const
 {
     static const std::wstring lower (L"abcdefghijklmnopqrstuvwxyz");
     static const std::wstring ctname (
@@ -302,15 +311,6 @@ bool vmcompiler::posixname (derivs_t& p, std::wstring& s) const
     static const std::vector<std::wstring> ctalias{
         L"d", L"digit", L"^d", L"^digit", L"s", L"space", L"^s", L"^space",
         L"w", L"word",  L"^w", L"^word"};
-    p += 2;
-    auto p0 = p;
-    if (L'^' == *p)
-        ++p;
-    while (c7toi (*p) < 36)
-        ++p;
-    auto p1 = p;
-    if (p1 - p0 <= 0 || L':' != *p++ || L']' != *p++)
-        return false;
     std::wstring name (p0, p1);
     for (int j = 0; j < ctalias.size (); j += 2)
         if (name == ctalias[j]) {
@@ -328,8 +328,8 @@ bool vmcompiler::posixname (derivs_t& p, std::wstring& s) const
 bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
 {
     std::wstring::size_type idx;
-    static const std::wstring pat1 (L"aftnrv");
-    static const std::wstring val1 (L"\a\f\t\n\r\v");
+    static const std::wstring ctrlname (L"aftnrv");
+    static const std::wstring ctrlchar (L"\a\f\t\n\r\v");
     if (std::iswcntrl (*p))
         return false;
     c = *p++;
@@ -338,8 +338,8 @@ bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
     if (std::iswcntrl (*p))
         return false;
     c = *p++;
-    if ((idx = pat1.find (c)) != std::wstring::npos)
-        c = val1[idx];
+    if ((idx = ctrlname.find (c)) != std::wstring::npos)
+        c = ctrlchar[idx];
     else if (L'c' == c) {
         if (std::iswcntrl (*p))
             return false;
@@ -347,8 +347,7 @@ bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
     }
     else if (c7toi (c) < 8) {
         --p;
-        if (! digits (p, 8, 4, c))
-            return false;
+        digits (p, 8, 4, c);
     }
     else if (L'x' == c && L'{' == *p) {
         ++p;
