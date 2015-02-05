@@ -329,29 +329,25 @@ bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
     c = *p++;
     if ((idx = pat1.find (c)) != std::wstring::npos)
         c = val1[idx];
-    else if (c7toi (c) < 8) {
-        --p;
-        if (! digits (p, 8, 4, c))
-            return false;
-    }
-    else if (L'x' == c) {
-        if (L'{' == *p) {
-            ++p;
-            if (! digits (p, 16, 8, c) || L'}' != *p++)
-                return false;
-        }
-        else if (! digits (p, 16, 2, c))
-            return false;
-    }
     else if (L'c' == c) {
         if (std::iswcntrl (*p))
             return false;
         c = *p++ % 32;
     }
-    else if ((L'u' == c || L'U' == c) && c7toi (p[0]) < 16) {
-        int const n = L'u' == c ? 4 : 8;
+    else if (c7toi (c) < 8) {
+        --p;
+        if (! digits (p, 8, 4, c))
+            return false;
+    }
+    else if (L'x' == c && L'{' == *p) {
+        ++p;
+        if (! (digits (p, 16, 8, c) && L'}' == *p++))
+            return false;
+    }
+    else if (L'x' == c || L'u' == c || L'U' == c) {
+        int const n = L'x' == c ? 2 : L'u' == c ? 4 : 8;
         derivs_t p0 = p;
-        if (! digits (p, 16, n, c) || p - p0 != n)
+        if (! (digits (p, 16, n, c) && (n < 4 || p - p0 == n)))
             return false;
     }
     return true;
