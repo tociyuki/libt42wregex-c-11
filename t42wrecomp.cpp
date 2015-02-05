@@ -33,6 +33,10 @@ private:
     bool digits (derivs_t& p, int const base, int const len, T& x) const;
 };
 
+// exp <- alt ENDSTR
+//
+//      e
+//      MATCH
 bool vmcompiler::exp (derivs_t& p, program& e, int const d)
 {
     mgroup = 0;
@@ -43,6 +47,20 @@ bool vmcompiler::exp (derivs_t& p, program& e, int const d)
     return true;
 }
 
+// alt <- cat ('|' cat)*
+//
+// instructions SPLIT and JMP have relative address displacements
+// from the next instruction.
+//
+//      SPLIT   L1,L2
+//   L1 e1
+//      JMP     L6
+//   L2 SPLIT   L3,L4
+//   L3 e2
+//      JMP     L6
+//   L4 SPLIT   L5,L6
+//   L5 e3
+//   L6
 bool vmcompiler::alt (derivs_t& p, program& e, int const d)
 {
     std::vector<std::size_t> patch;
@@ -69,6 +87,15 @@ bool vmcompiler::alt (derivs_t& p, program& e, int const d)
     return true;
 }
 
+// cat <- term*
+//
+//  e1 e2           where d > 0 outside LOOKBEHIND or inside LOOKAHEAD
+//      e1
+//      e2
+//
+//  (?<= e1 e2)     where d < 0 inside LOOKBEHIND
+//      e2
+//      e1
 bool vmcompiler::cat (derivs_t& p, program& e, int const d)
 {
     while (L'|' != *p && L')' != *p && L'\0' != *p) {
@@ -83,6 +110,23 @@ bool vmcompiler::cat (derivs_t& p, program& e, int const d)
     return true;
 }
 
+// term <- factor ([?*+]'?'? / interval)?
+//
+// e?                         e??
+//      SPLIT L1,L2                 SPLIT L2,L1
+//   L1 e                        L1 e
+//   L2                          L2
+//
+// e*                         e*?
+//   L1 SPLIT L2,L3              L1 SPLIT L3,L2
+//   L2 e                        L2 e
+//      JMP   L1                    JMP   L1
+//   L3                          L3
+//
+// e+                         e+?
+//   L1 e                        L1 e
+//      SPLIT L1,L2                 SPLIT L2,L1
+//   L2                          L2
 bool vmcompiler::term (derivs_t& p, program& e, int const d)
 {
     program e1;
@@ -112,6 +156,15 @@ bool vmcompiler::term (derivs_t& p, program& e, int const d)
     return true;
 }
 
+// interval <- '{' [0-9]+ (',' [0-9]*)? '}' '?'?
+//
+// e{m,n}                      e{m,n}?
+//      RESET %r                    RESET %r
+//   L1 REP   m,n,%r             L1 REP   m,n,%r
+//      SPLIT L2,L3                 SPLIT L3,L2
+//   L2 e                        L2 e
+//      JMP   L1                    JMP   L1
+//   L3                          L3
 bool vmcompiler::interval (derivs_t& p, program& e)
 {
     int n1, n2;
@@ -144,6 +197,10 @@ bool vmcompiler::interval (derivs_t& p, program& e)
     return true;
 }
 
+// factor <- group / cclass / [.^$] / assertions / regchar
+//
+// .             ^             $            a
+//     ANY           BOL            EOL          CHAR  "a"
 bool vmcompiler::factor (derivs_t& p, program& e, int const d)
 {
     static const std::wstring pat1 (L".^$");
@@ -175,6 +232,19 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
     return true;
 }
 
+// assertions <- '\\' ([ABbzdswDSW] / [1-7] ![0-7] / [89])
+//
+// \A                 \B                  \b                   \z
+//     BOS                 WORDB                NWRODB                EOS
+//
+// \d                 \s                  \w
+//     CCLASS ":e"         CCLASS ":i"          CCLASS ":l"
+//
+// \D                 \S                  \W
+//     CCLASS ":q"         CCLASS ":u"          CCLASS ":x"
+//
+// \1
+//     BKREF  1
 bool vmcompiler::assertions (derivs_t& p, program& e)
 {
     static const std::wstring chassertion (L"ABbz");
@@ -204,6 +274,26 @@ bool vmcompiler::assertions (derivs_t& p, program& e)
     return true;
 }
 
+// group <- '(' ('?:' / '?=' / '?!' / '?<=' / '?<!')? alt ')'
+//
+// (e)                    (?:e)
+//       SAVE  2*n              e
+//       e
+//       SAVE  2*n+1
+//
+// (?=e1 e2)              (?!e1 e2)
+//       LKAHEAD L1,L2          NLKAHEAD L1,L2
+//    L1 e1                  L1 e1
+//       e2                     e2
+//       MATCH                  MATCH
+//    L2                     L2
+//
+// (?<=e1 e2)             (?<!e1 e2)
+//       LKBEHIND L1,L2         NLKBEHIND L1,L2
+//    L1 e2                  L1 e2
+//       e1                     e1
+//       MATCH                  MATCH
+//    L2                     L2
 bool vmcompiler::group (derivs_t& p, program& e, int const d)
 {
     operation op = SAVE;
@@ -243,6 +333,14 @@ bool vmcompiler::group (derivs_t& p, program& e, int const d)
     return true;
 }
 
+// cclass <- '[' '^'? clschar ('-'? clschar)* '-'? ']'
+//
+// in the span string, charcters are quoted by a backslash.
+// posixname and perl backslash name are encoded by a colon.
+// see heritage BSD ex editor's regex.c by Bill Joy.
+//
+// [a-z\d[:blank:]]               [^a-z\d[:blank:]]
+//      CCLASS  "\\a-\\z:e:c"           NCCLASS  "\\a-\\z:e:c"
 bool vmcompiler::cclass (derivs_t& p, program& e) const
 {
     wchar_t c;
@@ -268,6 +366,7 @@ bool vmcompiler::cclass (derivs_t& p, program& e) const
     return true;
 }
 
+// clschar <- '\\' [dswDWS] / posixname / regchar
 bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
 {
     static const std::wstring pat (L"dswDSW");
@@ -298,6 +397,7 @@ bool vmcompiler::check_posixname (derivs_t p) const
     return scan_posixname (p);
 }
 
+// posixname <- '[:' '^'? [A-Za-z0-9]+ ':]'
 bool vmcompiler::scan_posixname (derivs_t& p) const
 {
     if (! (L'[' == *p && L':' == p[1]))
@@ -311,6 +411,12 @@ bool vmcompiler::scan_posixname (derivs_t& p) const
     return p - p0 > 0 && L':' == *p++ && L']' == *p++;
 }
 
+// posixnames are encoded an alphabet character
+// in the span wstring of the CCLASS and the NCCLASS instruction
+//
+// [:alnum:] -> ":a",  [:alpha:] -> ":b",  [:blank:] -> ":c", ..
+//
+// additional names are [:word:] for \w, [:^word:] for \W  
 bool vmcompiler::set_posixname (derivs_t p0, derivs_t p1, std::wstring& s) const
 {
     static const std::wstring lower (L"abcdefghijklmnopqrstuvwxyz");
@@ -335,6 +441,11 @@ bool vmcompiler::set_posixname (derivs_t p0, derivs_t p1, std::wstring& s) const
     return true;
 }
 
+// regchar <- '\\' [aftnrv] / '\\c' . / '\\x{' hex+ '}' / '\\x' hex hex?
+//          / '\\u' hex hex hex hex / '\\U' hex hex hex hex hex hex hex hex
+//          / '\\' [0-7] ([0-7] ([0-7] [0-7]?)?
+//          / '\\' . / .
+// hex     <- [0-9A-Fa-f]
 bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
 {
     std::wstring::size_type idx;
