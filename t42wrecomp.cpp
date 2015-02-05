@@ -151,6 +151,19 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
     static const std::wstring ccl3 (L"eilqux");
     wchar_t c;
     std::wstring::size_type idx;
+    if (L'?' == *p || L'*' == *p || L'+' == *p)
+        return false;
+    else if (L'[' == *p && L':' == p[1]) {
+        derivs_t q = p + 2;
+        if (L'^' == *q)
+            ++q;
+        if (c7toi (*q) < 36) {
+            while (c7toi (*q) < 36)
+                ++q;
+            if (L':' == *q && L']' == p[1])
+                return false;
+        }
+    }
     if (L'(' == *p) {
         ++p;
         if (! group (p, e, d))
@@ -183,8 +196,6 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
         e.push_back (instruction (BKREF, c7toi (p[1]), 0, r));
         p += 2;
     }
-    else if (L'?' == *p || L'*' == *p || L'+' == *p)
-        return false;
     else if (regchar (p, c))
         e.push_back (instruction (CHAR, std::wstring (1, c)));
     else
