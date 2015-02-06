@@ -349,17 +349,14 @@ bool vmcompiler::cclass (derivs_t& p, program& e) const
     std::wstring s;
     if (! clschar (p, s))   // []a] or [-a] trick
         return false;
-    while (L']' != *p)
-        if (L'-' == *p && L']' == *(p + 1))     // [a-] trick
-            clschar (p, s);
-        else {
-            if (L'-' == *p)
-                s.push_back (*p++);
-            if (L'-' == *p && L']' != *(p + 1))   // [%--] trick
-                return false;
-            if (! clschar (p, s))
-                return false;
-        }
+    while (L']' != *p) {
+        if (L'-' == *p && L']' != *(p + 1)) // [a-] trick
+            s.push_back (*p++);
+        if (L'-' == *p && L']' != *(p + 1)) // [%--] trick
+            return false;
+        if (! clschar (p, s))
+            return false;
+    }
     ++p;
     e.push_back (instruction (op, s));
     return true;
@@ -394,7 +391,7 @@ bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
 // posixname <- '[:' '^'? [A-Za-z0-9]+ ':]'
 bool vmcompiler::posixname (derivs_t& p) const
 {
-    if (L'[' != *p || L':' != p[1])
+    if (! (L'[' == *p && L':' == p[1]))
         return false;
     derivs_t q = p + 2;
     if (L'^' == *q)
