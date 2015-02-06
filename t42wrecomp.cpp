@@ -25,8 +25,7 @@ private:
     bool group (derivs_t& p, program& e, int const d);
     bool cclass (derivs_t& p, program& e) const;
     bool clschar (derivs_t& p, std::wstring& s) const;
-    bool check_posixname (derivs_t p) const;
-    bool scan_posixname (derivs_t& p) const;
+    bool posixname (derivs_t& p) const;
     bool set_posixname (derivs_t p0, derivs_t p1, std::wstring& s) const;
     bool regchar (derivs_t& p, wchar_t& c) const;
     template<typename T>
@@ -207,7 +206,7 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
     static const std::vector<operation> op1{ANY, BOL, EOL};
     wchar_t c;
     std::wstring::size_type idx;
-    if (L'?' == *p || L'*' == *p || L'+' == *p || check_posixname (p))
+    if (L'?' == *p || L'*' == *p || L'+' == *p || posixname (p))
         return false;
     if (L'(' == *p) {
         ++p;
@@ -380,7 +379,7 @@ bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
     }
     else if (L'[' == *p && L':' == p[1]) {  // [:posixname:]
         derivs_t p0 = p + 2;
-        if (! (scan_posixname (p) && set_posixname (p0, p - 2, s)))
+        if (! (posixname (p) && set_posixname (p0, p - 2, s)))
             return false;
     }
     else if (regchar (p, c)) {
@@ -392,23 +391,21 @@ bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
     return true;
 }
 
-bool vmcompiler::check_posixname (derivs_t p) const
-{
-    return scan_posixname (p);
-}
-
 // posixname <- '[:' '^'? [A-Za-z0-9]+ ':]'
-bool vmcompiler::scan_posixname (derivs_t& p) const
+bool vmcompiler::posixname (derivs_t& p) const
 {
-    if (! (L'[' == *p && L':' == p[1]))
+    if (L'[' != *p || L':' != p[1])
         return false;
-    p += 2;
-    if (L'^' == *p)
-        ++p;
-    derivs_t p0 = p;
-    while (c7toi (*p) < 36)
-        ++p;
-    return p - p0 > 0 && L':' == *p++ && L']' == *p++;
+    derivs_t q = p + 2;
+    if (L'^' == *q)
+        ++q;
+    derivs_t q0 = q;
+    while (c7toi (*q) < 36)
+        ++q;
+    if (! (q - q0 > 0 && L':' == *q++ && L']' == *q++))
+        return false;
+    p = q;
+    return true;
 }
 
 // posixnames are encoded an alphabet character
