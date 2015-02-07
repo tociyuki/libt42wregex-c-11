@@ -148,7 +148,7 @@ struct vmlex {
         std::wstring::size_type i;
         std::vector<derivs_t> m;
         if (scan (p, L"\\c.")) {
-            if (iswcntrl (p[-1]))
+            if (std::iswcntrl (p[-1]))
                 return false;
             c = p[-1] % 32;
         }
@@ -164,11 +164,11 @@ struct vmlex {
             scan_digits (m[0], 16, 8, c);
         else {
             c = *p++;
-            if (iswcntrl (c))
+            if (std::iswcntrl (c))
                 return false;
             if (L'\\' == c) {
                 c = *p++;
-                if (iswcntrl (c))
+                if (std::iswcntrl (c))
                     return false;
                 if ((i = ctrlname.find (c)) != std::wstring::npos)
                     c = ctrlchar[i];
@@ -200,7 +200,7 @@ struct vmlex {
 };
 
 struct compenv {
-    bool backward;
+    bool behind;
 };
 
 class vmcompiler {
@@ -228,7 +228,7 @@ private:
 bool vmcompiler::exp (derivs_t& p, program& e)
 {
     compenv a;
-    a.backward = false;
+    a.behind = false;
     mgroup = 0;
     mreg = 0;
     if (! (alt (p, a, e) && lex->endstring (p)))
@@ -291,7 +291,7 @@ bool vmcompiler::cat (derivs_t& p, compenv& a, program& e)
         program e1;
         if (! term (p, a, e1))
             return false;
-        if (a.backward)
+        if (a.behind)
             e.insert (e.begin (), e1.begin (), e1.end ());
         else
             e.insert (e.end (), e1.begin (), e1.end ());
@@ -470,7 +470,7 @@ bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
     int n1 = (mgroup + 1) * 2, n2 = (mgroup + 1) * 2 + 1;
     if (SAVE == op) {
         ++mgroup;
-        if (a.backward)
+        if (a.behind)
             std::swap (n1, n2);
         e.push_back (instruction (SAVE, n1, 0, 0));
     }
@@ -479,9 +479,9 @@ bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
         e.push_back (instruction (op, 0, 0, 0));
     compenv a1 = a;
     if (LKAHEAD == op || NLKAHEAD == op)
-        a1.backward = false;
+        a1.behind = false;
     else if (LKBEHIND == op || NLKBEHIND == op)
-        a1.backward = true;
+        a1.behind = true;
     if (! (alt (p, a1, e) && lex->rparen (p)))
         return false;
     if (LKAHEAD == op || NLKAHEAD == op || LKBEHIND == op || NLKBEHIND == op) {
