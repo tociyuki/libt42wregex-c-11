@@ -10,37 +10,228 @@ namespace wpike {
 
 typedef std::wstring::iterator derivs_t;
 
+bool scan (derivs_t& sp0, std::wstring pat, std::vector<derivs_t>& m)
+{
+    m.clear ();
+    derivs_t sp = sp0;
+    derivs_t ip = pat.begin ();
+    while (ip < pat.end ()) {
+        int lo = 0, hi = 0, n1 = 1, n2 = 1;
+        wchar_t c = *ip++;
+        if (L'(' == c || L')' == c)
+            m.push_back (sp);
+        else {
+            bool dot = L'.' == c;
+            if (L'%' == c) {
+                c = *ip++;
+                lo = L'a' == c ? 10 : lo;
+                hi = L'o' == c ? 10 : L'd' == c ? 10 : L'x' == c ? 16 : (L'l' == c || L'a' == c) ? 36 : hi;
+            }
+            if (ip + 4 < pat.end () && L'{' == *ip && L',' == ip[2] && L'}' == ip[4])
+                n1 = c7toi (ip[1]), n2 = c7toi (ip[3]), ip += 5;
+            for (int i = 0; i < n2; ++i, ++sp) {
+                if (L'\0' != *sp) {
+                    int x = c7toi (*sp);
+                    if (dot || (hi == 0 && c == *sp) || (lo <= x && x < hi))
+                        continue;
+                }
+                if (i < n1)
+                    return false;
+                break;
+            }
+        }
+    }
+    sp0 = sp;
+    return true;
+}
+
+bool scan (derivs_t& p, std::wstring pat)
+{
+    std::vector<derivs_t> _;
+    return scan (p, pat, _);
+}
+
+bool scan_not (derivs_t& p, std::wstring pat, std::wstring la)
+{
+    derivs_t q = p;
+    if (scan (q, pat) && ! scan (q, la)) {
+        p = q;
+        return true;
+    }
+    return false;
+}
+
+template<typename T>
+bool scan_digits (derivs_t& p, int const base, int const len, T& x)
+{
+    if (c7toi (*p) >= base)
+        return false;
+    x = 0;
+    for (int i = 0; i < len && c7toi (*p) < base; ++i, ++p)
+        x = x * base + c7toi (*p);
+    return true;
+}
+
+struct vmlex {
+    vmlex () {}
+    virtual ~vmlex () {}
+    virtual bool endstring (derivs_t& p) { return L'\0' == *p; }
+    virtual bool alt (derivs_t& p) { return scan (p, L"|"); }
+    virtual bool rep01 (derivs_t& p) { return scan (p, L"?"); }
+    virtual bool rep0 (derivs_t& p) { return scan (p, L"*"); }
+    virtual bool rep1 (derivs_t& p) { return scan (p, L"+"); }
+    virtual bool ngreedy (derivs_t& p) { return scan (p, L"?"); }
+    virtual bool any (derivs_t& p) { return scan (p, L"%."); }
+    virtual bool bol (derivs_t& p) { return scan (p, L"^"); }
+    virtual bool eol (derivs_t& p) { return scan (p, L"$"); }
+    virtual bool bos (derivs_t& p) { return scan (p, L"\\A"); }
+    virtual bool eos (derivs_t& p) { return scan (p, L"\\z"); }
+    virtual bool wordb (derivs_t& p) { return scan (p, L"\\b"); }
+    virtual bool nwordb (derivs_t& p) { return scan (p, L"\\B"); }
+    virtual bool first_group (derivs_t& p) { return L'(' == *p; }
+    virtual bool group (derivs_t& p) { return scan_not (p, L"%(", L"?"); }
+    virtual bool lparen (derivs_t& p) { return scan (p, L"%(?:"); }
+    virtual bool lkahead (derivs_t& p) { return scan (p, L"%(?="); }
+    virtual bool nlkahead (derivs_t& p) { return scan (p, L"%(?!"); }
+    virtual bool lkbehind (derivs_t& p) { return scan (p, L"%(?<="); }
+    virtual bool nlkbehind (derivs_t& p) { return scan (p, L"%(?<!"); }
+    virtual bool rparen (derivs_t& p) { return scan (p, L"%)"); }
+    virtual bool cclass (derivs_t& p) { return scan (p, L"["); }
+    virtual bool ncclass (derivs_t& p) { return scan (p, L"^"); }
+    virtual bool rcclass (derivs_t& p) { return scan (p, L"]"); }
+    virtual bool range (derivs_t& p) { return scan_not (p, L"-", L"]"); }
+
+    virtual bool repnn (derivs_t& p, int& n1, int& n2)
+    {
+        std::vector<derivs_t> m;
+        if (scan (p, L"%{(%d{1,8})%}", m)) {
+            scan_digits (m[0], 10, 8, n1);
+            n2 = n1;
+            return true;
+        }
+        else if (scan (p, L"%{(%d{1,8}),(%d{0,8})%}", m)) {
+            n2 = -1;
+            scan_digits (m[0], 10, 8, n1);
+            scan_digits (m[2], 10, 8, n2);
+            return true;
+        }
+        return false;
+    }
+
+    virtual bool bsname (derivs_t& p, std::wstring& t)
+    {
+        static const std::wstring name (L"dswDSW");
+        if (L'\\' == *p && name.find (p[1]) != std::wstring::npos) {
+            t.assign (1, p[1]);
+            p += 2;
+            return true;
+        }
+        return false;
+    }
+
+    virtual bool bkref (derivs_t& p, int& n)
+    {
+        if (L'\\' != *p)
+            return false;
+        n = c7toi (p[1]);
+        if ((1 <= n && n <= 7 && c7toi (p[2]) >= 8) || (8 <= n && n < 10)) {
+            p += 2;
+            return true;
+        }
+        return false;
+    }
+
+    virtual bool regchar (derivs_t& p, wchar_t& c)
+    {
+        static const std::wstring ctrlname (L"aftnrv");
+        static const std::wstring ctrlchar (L"\a\f\t\n\r\v");
+        std::wstring::size_type i;
+        std::vector<derivs_t> m;
+        if (scan (p, L"\\c.")) {
+            if (iswcntrl (p[-1]))
+                return false;
+            c = p[-1] % 32;
+        }
+        else if (scan (p, L"\\(%o{1,4})", m))
+            scan_digits (m[0], 8, 4, c);
+        else if (scan (p, L"\\x(%x{1,2})", m))
+            scan_digits (m[0], 16, 2, c);
+        else if (scan (p, L"\\x%{(%x{1,8})%}", m))
+            scan_digits (m[0], 16, 8, c);
+        else if (scan (p, L"\\u(%x{4,4})", m))
+            scan_digits (m[0], 16, 4, c);
+        else if (scan (p, L"\\U(%x{8,8})", m))
+            scan_digits (m[0], 16, 8, c);
+        else {
+            c = *p++;
+            if (iswcntrl (c))
+                return false;
+            if (L'\\' == c) {
+                c = *p++;
+                if (iswcntrl (c))
+                    return false;
+                if ((i = ctrlname.find (c)) != std::wstring::npos)
+                    c = ctrlchar[i];
+            }
+        }
+        return true;
+    }
+
+    virtual bool posixname (derivs_t& p, std::wstring& t)
+    {
+        std::vector<derivs_t> m;
+        if (scan (p, L"[:(^{0,1}%a{1,z}):]", m)) {
+            t.assign (m[0], m[1]);
+            return true;
+        }
+       return false;
+    }
+
+    virtual bool first_term (derivs_t& p)
+    {
+        return L'|' != *p && L')' != *p && L'\0' != *p;
+    }
+
+    virtual bool first_factor (derivs_t& p)
+    {
+        std::wstring _;
+        return L'?' != *p && L'*' != *p && L'+' != *p && ! posixname (p, _);
+    }
+};
+
+struct compenv {
+    bool backward;
+};
+
 class vmcompiler {
 public:
-    bool exp (derivs_t& p, program& e, int const d);
+    vmcompiler (std::shared_ptr<vmlex> const& a) : lex (a) {}
+    bool exp (derivs_t& p, program& e);
 private:
+    std::shared_ptr<vmlex> lex;
     int mgroup;
     int mreg;
-    bool alt (derivs_t& p, program& e, int const d);
-    bool cat (derivs_t& p, program& , int const d);
-    bool term (derivs_t& p, program& e, int const d);
-    bool interval (derivs_t& p, program& e);
-    bool factor (derivs_t& p, program& e, int const d);
-    bool assertions (derivs_t& p, program& e);
-    bool group (derivs_t& p, program& e, int const d);
-    bool cclass (derivs_t& p, program& e) const;
-    bool clschar (derivs_t& p, std::wstring& s) const;
-    bool posixname (derivs_t& p) const;
-    bool set_posixname (derivs_t p0, derivs_t p1, std::wstring& s) const;
-    bool regchar (derivs_t& p, wchar_t& c) const;
-    template<typename T>
-    bool digits (derivs_t& p, int const base, int const len, T& x) const;
+    bool alt (derivs_t& p, compenv& a, program& e);
+    bool cat (derivs_t& p, compenv& a, program& e);
+    bool term (derivs_t& p, compenv& a, program& e);
+    bool factor (derivs_t& p, compenv& a, program& e);
+    bool group (derivs_t& p, compenv& a, program& e);
+    bool cclass (derivs_t& p, compenv& a, program& e);
+    bool clschar (derivs_t& p, compenv& a, std::wstring& span);
+    bool encode_posixname (std::wstring name, std::wstring& s);
 };
 
 // exp <- alt ENDSTR
 //
 //      e
 //      MATCH
-bool vmcompiler::exp (derivs_t& p, program& e, int const d)
+bool vmcompiler::exp (derivs_t& p, program& e)
 {
+    compenv a;
+    a.backward = false;
     mgroup = 0;
     mreg = 0;
-    if (! (alt (p, e, d) && L'\0' == *p))
+    if (! (alt (p, a, e) && lex->endstring (p)))
         return false;
     e.push_back (instruction (MATCH));
     return true;
@@ -60,18 +251,17 @@ bool vmcompiler::exp (derivs_t& p, program& e, int const d)
 //   L4 SPLIT   L5,L6
 //   L5 e3
 //   L6
-bool vmcompiler::alt (derivs_t& p, program& e, int const d)
+bool vmcompiler::alt (derivs_t& p, compenv& a, program& e)
 {
     std::vector<std::size_t> patch;
     program lhs;
-    if (! cat (p, lhs, d))
+    if (! cat (p, a, lhs))
         return false;
-    while (L'|' == *p) {
-        ++p;
+    while (lex->alt (p)) {
         program rhs;
-        if (! cat (p, rhs, d))
+        if (! cat (p, a, rhs))
             return false;
-        if (lhs.size () == 0 && rhs.size () == 0)
+        if (lhs.empty () && rhs.empty ())
             continue;
         e.push_back (instruction (SPLIT, 0, lhs.size () + 1, 0));
         e.insert (e.end (), lhs.begin (), lhs.end ());
@@ -80,9 +270,9 @@ bool vmcompiler::alt (derivs_t& p, program& e, int const d)
         lhs = std::move (rhs);
     }
     e.insert (e.end (), lhs.begin (), lhs.end ());
-    std::size_t const dol = e.size ();
+    std::size_t const dot = e.size ();
     for (auto i : patch)
-        e[i].x = dol - i - 1;
+        e[i].x = dot - i - 1;
     return true;
 }
 
@@ -95,13 +285,13 @@ bool vmcompiler::alt (derivs_t& p, program& e, int const d)
 //  (?<= e1 e2)     where d < 0 inside LOOKBEHIND
 //      e2
 //      e1
-bool vmcompiler::cat (derivs_t& p, program& e, int const d)
+bool vmcompiler::cat (derivs_t& p, compenv& a, program& e)
 {
-    while (L'|' != *p && L')' != *p && L'\0' != *p) {
+    while (lex->first_term (p)) {
         program e1;
-        if (! term (p, e1, d))
+        if (! term (p, a, e1))
             return false;
-        if (d < 0)
+        if (a.backward)
             e.insert (e.begin (), e1.begin (), e1.end ());
         else
             e.insert (e.end (), e1.begin (), e1.end ());
@@ -126,36 +316,6 @@ bool vmcompiler::cat (derivs_t& p, program& e, int const d)
 //   L1 e                        L1 e
 //      SPLIT L1,L2                 SPLIT L2,L1
 //   L2                          L2
-bool vmcompiler::term (derivs_t& p, program& e, int const d)
-{
-    program e1;
-    if (! factor (p, e1, d))
-        return false;
-    if (L'?' == *p || L'*' == *p || L'+' == *p) {
-        wchar_t const repetition = *p++;
-        bool const greedy = *p != L'?';
-        int const n1 = static_cast<int> (e1.size ());
-        int x = L'+' == repetition ? -(n1 + 1) : 0;
-        int y = L'*' == repetition ? n1 + 1 : L'?' == repetition ? n1 : 0;
-        if (! greedy) {
-            ++p;
-            std::swap (x, y);
-        }
-        if (L'+' == repetition)
-            e1.push_back (instruction (SPLIT, x, y, 0));
-        else {
-            e1.insert (e1.begin (), instruction (SPLIT, x, y, 0));
-            if (L'*' == repetition)
-                e1.push_back (instruction (JMP, -(n1 + 2), 0, 0));
-        }
-    }
-    else if (L'{' == *p && ! interval (p, e1))
-        return false;
-    e.insert (e.end (), e1.begin (), e1.end ());
-    return true;
-}
-
-// interval <- '{' [0-9]+ (',' [0-9]*)? '}' '?'?
 //
 // e{m,n}                      e{m,n}?
 //      RESET %r                    RESET %r
@@ -164,74 +324,59 @@ bool vmcompiler::term (derivs_t& p, program& e, int const d)
 //   L2 e                        L2 e
 //      JMP   L1                    JMP   L1
 //   L3                          L3
-bool vmcompiler::interval (derivs_t& p, program& e)
+bool vmcompiler::term (derivs_t& p, compenv& a, program& e)
 {
-    int n1, n2;
-    derivs_t q = p + 1;     // skip L'{'
-    if (! digits (q, 10, 8, n1))
-        return true;        // backtrack for L"q{a}"
-    n2 = n1;
-    if (L',' == *q) {
-        ++q;
-        n2 = -1;
-        digits (q, 10, 8, n2);
-    }
-    if (L'}' != *q++)
-        return true;
-    bool const greedy = *q != L'?';
-    if (! greedy)
-        ++q;
-    if (n2 != -1 && (n1 > n2 || n2 <= 0))
+    program e1;
+    int k1 = 1, k2 = 1;
+    bool ngreedy = false;
+    if (! factor (p, a, e1))
         return false;
-    int const d = e.size ();
-    int const r = mreg++;
-    if (n1 == n2 || greedy)
-        e.insert (e.begin (), instruction (SPLIT, 0, d + 1, 0));
-    else
-        e.insert (e.begin (), instruction (SPLIT, d + 1, 0, 0));
-    e.insert (e.begin (), instruction (REP, n1, n2, r));
-    e.insert (e.begin (), instruction (RESET, 0, 0, r));
-    e.push_back (instruction (JMP, -(d + 3), 0, 0));
-    p = q;
+    if (lex->rep01 (p)) {
+        k1 = 0, k2 = 1;
+        ngreedy = lex->ngreedy (p);
+    }
+    else if (lex->rep0 (p)) {
+        k1 = 0, k2 = -1;
+        ngreedy = lex->ngreedy (p);
+    }
+    else if (lex->rep1 (p)) {
+        k1 = 1, k2 = -1;
+        ngreedy = lex->ngreedy (p);
+    }
+    else if (lex->repnn (p, k1, k2)) {
+        ngreedy = lex->ngreedy (p);
+    }
+    int n1 = e1.size ();
+    int x = k1 == 1 && k2 == -1 ? -(n1 + 1) : 0;
+    int y = k1 == 0 && k2 == 1 ? n1 : k1 == 1 && k2 == -1 ? 0 : n1 + 1;
+    if (k1 != k2 && ngreedy)
+        std::swap (x, y);
+    if (k1 == 1 && k2 == 1)
+        e.insert (e.end (), e1.begin (), e1.end ());
+    else if (k1 == 1 && k2 == -1) {
+        e.insert (e.end (), e1.begin (), e1.end ());
+        e.push_back (instruction (SPLIT, x, y, 0));
+    }
+    else {
+        int z = k1 == 0 && k2 == -1 ? -(n1 + 2) : -(n1 + 3);
+        if (! (k1 == 0 && (k2 == 1 || k2 == -1))) {
+            int const r = mreg++;
+            e.push_back (instruction (RESET, 0, 0, r));
+            e.push_back (instruction (REP, k1, k2, r));
+        }
+        e.push_back (instruction (SPLIT, x, y, 0));
+        e.insert (e.end (), e1.begin (), e1.end ());
+        if (! (k1 == 0 && k2 == 1))
+            e.push_back (instruction (JMP, z, 0, 0));
+    }
     return true;
 }
 
-// factor <- group / cclass / [.^$] / assertions / regchar
+// factor <- group / cclass / [.] / assertions / regchar
+// assertions <- '\\' ([ABbzdswDSW] / [1-7] ![0-7] / [89])
 //
 // .             ^             $            a
 //     ANY           BOL            EOL          CHAR  "a"
-bool vmcompiler::factor (derivs_t& p, program& e, int const d)
-{
-    static const std::wstring pat1 (L".^$");
-    static const std::vector<operation> op1{ANY, BOL, EOL};
-    wchar_t c;
-    std::wstring::size_type idx;
-    if (L'?' == *p || L'*' == *p || L'+' == *p || posixname (p))
-        return false;
-    if (L'(' == *p) {
-        ++p;
-        if (! group (p, e, d))
-            return false;
-    }
-    else if (L'[' == *p) {
-        ++p;
-        if (! cclass (p, e))
-            return false;
-    }
-    else if ((idx = pat1.find (*p)) != std::wstring::npos) {
-        e.push_back (instruction (op1[idx]));
-        ++p;
-    }
-    else if (L'\\' == *p && assertions (p, e))
-        ;
-    else if (regchar (p, c))
-        e.push_back (instruction (CHAR, std::wstring (1, c)));
-    else
-        return false;
-    return true;
-}
-
-// assertions <- '\\' ([ABbzdswDSW] / [1-7] ![0-7] / [89])
 //
 // \A                 \B                  \b                   \z
 //     BOS                 WORDB                NWRODB                EOS
@@ -244,32 +389,50 @@ bool vmcompiler::factor (derivs_t& p, program& e, int const d)
 //
 // \1
 //     BKREF  1
-bool vmcompiler::assertions (derivs_t& p, program& e)
+bool vmcompiler::factor (derivs_t& p, compenv& a, program& e)
 {
-    static const std::wstring chassertion (L"ABbz");
-    static const std::vector<operation> opassertion{BOS, NWORDB, WORDB, EOS};
-    static const std::wstring chclass (L"dswDSW");
-    static const std::wstring ccl (L"eilqux");
-    std::wstring::size_type idx;
-    if ((idx = chassertion.find (p[1])) != std::wstring::npos) {
-        e.push_back (instruction (opassertion[idx]));
-        p += 2;
+    std::wstring name;
+    int n;
+    wchar_t c;
+    if (! lex->first_factor (p))
+        return false;
+    else if (lex->first_group (p)) {
+        if (! group (p, a, e))
+            return false;
     }
-    else if ((idx = chclass.find (p[1])) != std::wstring::npos) {
-        std::wstring s (L":");
-        s.push_back (ccl[idx]);
+    else if (lex->cclass (p)) {
+        if (! cclass (p, a, e))
+            return false;
+    }
+    else if (lex->any (p))
+        e.push_back (instruction (ANY));
+    else if (lex->bol (p))
+        e.push_back (instruction (BOL));
+    else if (lex->eol (p))
+        e.push_back (instruction (EOL));
+    else if (lex->bos (p))
+        e.push_back (instruction (BOS));
+    else if (lex->eos (p))
+        e.push_back (instruction (EOS));
+    else if (lex->wordb (p))
+        e.push_back (instruction (WORDB));
+    else if (lex->nwordb (p))
+        e.push_back (instruction (NWORDB));
+    else if (lex->bsname (p, name)) {
+        std::wstring s;
+        encode_posixname (name, s);
         e.push_back (instruction (CCLASS, s));
-        p += 2;
     }
-    else if ((1 <= c7toi (p[1]) && c7toi (p[1]) < 8 && c7toi (p[2]) >= 8)
-            || (8 <= c7toi (p[1]) && c7toi (p[1]) < 10)) {
+    else if (lex->bkref (p, n)) {
         int const r = mreg++;
         e.push_back (instruction (RESET, 0, 0, r));
-        e.push_back (instruction (BKREF, c7toi (p[1]), 0, r));
-        p += 2;
+        e.push_back (instruction (BKREF, n, 0, r));
     }
-    else
-        return false;
+    else {
+        if (! lex->regchar (p, c))
+            return false;
+        e.push_back (instruction (CHAR, std::wstring (1, c)));
+    }
     return true;
 }
 
@@ -293,35 +456,33 @@ bool vmcompiler::assertions (derivs_t& p, program& e)
 //       e1                     e1
 //       MATCH                  MATCH
 //    L2                     L2
-bool vmcompiler::group (derivs_t& p, program& e, int const d)
+bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
 {
-    operation op = SAVE;
-    if (L'?' == *p) {
-        op = L':' == p[1] ? ANY
-           : L'=' == p[1] ? LKAHEAD
-           : L'!' == p[1] ? NLKAHEAD
-           : L'<' == p[1] && L'=' == p[2] ? LKBEHIND
-           : L'<' == p[1] && L'!' == p[2] ? NLKBEHIND
-           : op;
-        if (SAVE == op)
-            return false;
-        p += L'<' == p[1] ? 3 : 2;
-    }
-    int n1 = (mgroup + 1) * 2;
-    int n2 = (mgroup + 1) * 2 + 1;
+    operation op = lex->group (p) ? SAVE
+                 : lex->lparen (p) ? MATCH
+                 : lex->lkahead (p) ? LKAHEAD
+                 : lex->nlkahead (p) ? NLKAHEAD
+                 : lex->lkbehind (p) ? LKBEHIND
+                 : lex->nlkbehind (p) ? NLKBEHIND
+                 : ANY;
+    if (ANY == op)
+        return false;
+    int n1 = (mgroup + 1) * 2, n2 = (mgroup + 1) * 2 + 1;
     if (SAVE == op) {
         ++mgroup;
-        if (d < 0)
+        if (a.backward)
             std::swap (n1, n2);
         e.push_back (instruction (SAVE, n1, 0, 0));
     }
     int const dot = e.size ();
     if (LKAHEAD == op || NLKAHEAD == op || LKBEHIND == op || NLKBEHIND == op)
         e.push_back (instruction (op, 0, 0, 0));
-    int const d1 = (LKAHEAD == op  || NLKAHEAD == op)  ? +1
-                  : (LKBEHIND == op || NLKBEHIND == op) ? -1
-                  : d;
-    if (! (alt (p, e, d1) && L')' == *p++))
+    compenv a1 = a;
+    if (LKAHEAD == op || NLKAHEAD == op)
+        a1.backward = false;
+    else if (LKBEHIND == op || NLKBEHIND == op)
+        a1.backward = true;
+    if (! (alt (p, a1, e) && lex->rparen (p)))
         return false;
     if (LKAHEAD == op || NLKAHEAD == op || LKBEHIND == op || NLKBEHIND == op) {
         e.push_back (instruction (MATCH, 0, 0, 0));
@@ -340,68 +501,41 @@ bool vmcompiler::group (derivs_t& p, program& e, int const d)
 //
 // [a-z\d[:blank:]]               [^a-z\d[:blank:]]
 //      CCLASS  "\\a-\\z:e:c"           NCCLASS  "\\a-\\z:e:c"
-bool vmcompiler::cclass (derivs_t& p, program& e) const
+bool vmcompiler::cclass (derivs_t& p, compenv& a, program& e)
 {
-    wchar_t c;
-    operation op = L'^' == *p ? NCCLASS : CCLASS;
-    if (op == NCCLASS)
-        ++p;
     std::wstring s;
-    if (! clschar (p, s))   // []a] or [-a] trick
+    operation op = lex->ncclass (p) ? NCCLASS : CCLASS;
+    if (! clschar (p, a, s))
         return false;
-    while (L']' != *p) {
-        if (L'-' == *p && L']' != *(p + 1)) // [a-] trick
-            s.push_back (*p++);
-        if (L'-' == *p && L']' != *(p + 1)) // [%--] trick
+    while (! lex->rcclass (p)) {
+        if (lex->range (p))
+            s.push_back (L'-');
+        if (lex->range (p))
             return false;
-        if (! clschar (p, s))
+        if (! clschar (p, a, s))
             return false;
     }
-    ++p;
     e.push_back (instruction (op, s));
     return true;
 }
 
 // clschar <- '\\' [dswDWS] / posixname / regchar
-bool vmcompiler::clschar (derivs_t& p, std::wstring& s) const
+bool vmcompiler::clschar (derivs_t& p, compenv& a, std::wstring& s)
 {
-    static const std::wstring pat (L"dswDSW");
-    static const std::wstring ccl (L"eilqux");  // see posixname
-    std::wstring::size_type i;
-    wchar_t c;
-    if (L'\\' == *p && (i = pat.find (p[1])) != std::wstring::npos) {
-        s.push_back (L':');
-        s.push_back (ccl[i]);
-        p += 2;
-    }
-    else if (L'[' == *p && L':' == p[1]) {  // [:posixname:]
-        derivs_t p0 = p + 2;
-        if (! (posixname (p) && set_posixname (p0, p - 2, s)))
+    std::wstring name;
+    if (lex->posixname (p, name)) {
+        if (! encode_posixname (name, s))
             return false;
     }
-    else if (regchar (p, c)) {
+    else if (lex->bsname (p, name))
+        encode_posixname (name, s);
+    else {
+        wchar_t c;
+        if (! lex->regchar (p, c))
+            return false;
         s.push_back (L'\\');
         s.push_back (c);
     }
-    else
-        return false;
-    return true;
-}
-
-// posixname <- '[:' '^'? [A-Za-z0-9]+ ':]'
-bool vmcompiler::posixname (derivs_t& p) const
-{
-    if (! (L'[' == *p && L':' == p[1]))
-        return false;
-    derivs_t q = p + 2;
-    if (L'^' == *q)
-        ++q;
-    derivs_t q0 = q;
-    while (c7toi (*q) < 36)
-        ++q;
-    if (! (q - q0 > 0 && L':' == *q++ && L']' == *q++))
-        return false;
-    p = q;
     return true;
 }
 
@@ -411,23 +545,23 @@ bool vmcompiler::posixname (derivs_t& p) const
 // [:alnum:] -> ":a",  [:alpha:] -> ":b",  [:blank:] -> ":c", ..
 //
 // additional names are [:word:] for \w, [:^word:] for \W  
-bool vmcompiler::set_posixname (derivs_t p0, derivs_t p1, std::wstring& s) const
+bool vmcompiler::encode_posixname (std::wstring name, std::wstring& s)
 {
     static const std::wstring lower (L"abcdefghijklmnopqrstuvwxyz");
-    static const std::wstring ctname (
+    static const std::wstring pxname (
         L"alnum   alpha   blank   cntrl   digit   graph   lower   print   "
         L"space   upper   xdigit  word    ^alnum  ^alpha  ^blank  ^cntrl  "
         L"^digit  ^graph  ^lower  ^print  ^space  ^upper  ^xdigit ^word   ");
-    static const std::vector<std::wstring> ctalias{
-        L"d", L"digit", L"^d", L"^digit", L"s", L"space", L"^s", L"^space",
-        L"w", L"word",  L"^w", L"^word"};
-    std::wstring name (p0, p1);
-    for (int j = 0; j < ctalias.size (); j += 2)
-        if (name == ctalias[j]) {
-            name = ctalias[j + 1];
+    static const std::vector<std::wstring> pxalias{
+        L"d", L"digit", L"^d", L"^digit", L"D", L"^digit",
+        L"s", L"space", L"^s", L"^space", L"S", L"^space",
+        L"w", L"word",  L"^w", L"^word",  L"W", L"^word"};
+    for (int j = 0; j < pxalias.size (); j += 2)
+        if (name == pxalias[j]) {
+            name = pxalias[j + 1];
             break;
         }
-    std::wstring::size_type i = ctname.find (name);
+    std::wstring::size_type i = pxname.find (name);
     if (i == std::wstring::npos)
         return false;
     s.push_back (L':');
@@ -435,79 +569,27 @@ bool vmcompiler::set_posixname (derivs_t p0, derivs_t p1, std::wstring& s) const
     return true;
 }
 
-// regchar <- '\\' [aftnrv] / '\\c' . / '\\x{' hex+ '}' / '\\x' hex hex?
-//          / '\\u' hex hex hex hex / '\\U' hex hex hex hex hex hex hex hex
-//          / '\\' [0-7] ([0-7] ([0-7] [0-7]?)?
-//          / '\\' . / .
-// hex     <- [0-9A-Fa-f]
-bool vmcompiler::regchar (derivs_t& p, wchar_t& c) const
-{
-    std::wstring::size_type idx;
-    static const std::wstring ctrlname (L"aftnrv");
-    static const std::wstring ctrlchar (L"\a\f\t\n\r\v");
-    if (std::iswcntrl (*p))
-        return false;
-    c = *p++;
-    if (L'\\' != c)
-        return true;
-    if (std::iswcntrl (*p))
-        return false;
-    c = *p++;
-    if ((idx = ctrlname.find (c)) != std::wstring::npos)
-        c = ctrlchar[idx];
-    else if (L'c' == c) {
-        if (std::iswcntrl (*p))
-            return false;
-        c = *p++ % 32;
-    }
-    else if (c7toi (c) < 8) {
-        --p;
-        digits (p, 8, 4, c);
-    }
-    else if (L'x' == c && L'{' == *p) {
-        ++p;
-        if (! (digits (p, 16, 8, c) && L'}' == *p++))
-            return false;
-    }
-    else if (L'x' == c || L'u' == c || L'U' == c) {
-        int const n = L'x' == c ? 2 : L'u' == c ? 4 : 8;
-        derivs_t p0 = p;
-        if (! (digits (p, 16, n, c) && (n < 4 || p - p0 == n)))
-            return false;
-    }
-    return true;
-}
-
-template<typename T>
-bool vmcompiler::digits (derivs_t& p, int const base, int const len, T& x) const
-{
-    if (c7toi (*p) >= base)
-        return false;
-    x = 0;
-    for (int i = 0; i < len && c7toi (*p) < base; i++)
-        x = x * base + c7toi (*p++);
-    return true;
-}
-
 }//namespace wpike
 
 wregex::wregex (std::wstring s)
 {
-    wpike::vmcompiler comp;
+    auto lex = std::make_shared<wpike::vmlex> ();
+    wpike::vmcompiler comp (lex);
     flag = 0;
     s.push_back (L'\0');
     std::wstring::iterator p = s.begin ();
-    if (! comp.exp (p, e, +1))
+    if (! comp.exp (p, e))
         throw regex_error ();
 }
 
 wregex::wregex (std::wstring s, flag_type f)
 {
-    wpike::vmcompiler comp;
+    auto lex = std::make_shared<wpike::vmlex> ();
+    wpike::vmcompiler comp (lex);
     flag = f;
     s.push_back (L'\0');
     std::wstring::iterator p = s.begin ();
-    if (! comp.exp (p, e, +1))
+    if (! comp.exp (p, e))
         throw regex_error ();
 }
 
