@@ -95,6 +95,7 @@ struct vmlex {
     virtual bool nlkahead (derivs_t& p) { return scan (p, L"%(?!"); }
     virtual bool lkbehind (derivs_t& p) { return scan (p, L"%(?<="); }
     virtual bool nlkbehind (derivs_t& p) { return scan (p, L"%(?<!"); }
+    virtual bool gcomment (derivs_t& p) { return scan (p, L"%(?#"); }
     virtual bool rparen (derivs_t& p) { return scan (p, L"%)"); }
     virtual bool cclass (derivs_t& p) { return scan (p, L"["); }
     virtual bool ncclass (derivs_t& p) { return scan (p, L"^"); }
@@ -216,6 +217,7 @@ private:
     bool term (derivs_t& p, compenv& a, program& e);
     bool factor (derivs_t& p, compenv& a, program& e);
     bool group (derivs_t& p, compenv& a, program& e);
+    bool gcomment (derivs_t& p);
     bool cclass (derivs_t& p, compenv& a, program& e);
     bool clschar (derivs_t& p, compenv& a, std::wstring& span);
     bool encode_posixname (std::wstring name, std::wstring& s);
@@ -436,11 +438,11 @@ bool vmcompiler::factor (derivs_t& p, compenv& a, program& e)
     return true;
 }
 
-// group <- '(' ('?:' / '?=' / '?!' / '?<=' / '?<!')? alt ')'
+// group <- '(' ('?:' / '?=' / '?!' / '?<=' / '?<!' / '?#')? alt ')'
 //
-// (e)                    (?:e)
-//       SAVE  2*n              e
-//       e
+// (e)                    (?:e)                 e1(?#e)e2
+//       SAVE  2*n              e                   e1
+//       e                                          e2
 //       SAVE  2*n+1
 //
 // (?=e1 e2)              (?!e1 e2)
@@ -458,6 +460,8 @@ bool vmcompiler::factor (derivs_t& p, compenv& a, program& e)
 //    L2                     L2
 bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
 {
+    if (lex->gcomment (p))
+        return gcomment (p);
     operation op = lex->group (p) ? SAVE
                  : lex->lparen (p) ? MATCH
                  : lex->lkahead (p) ? LKAHEAD
@@ -490,6 +494,29 @@ bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
     }
     if (SAVE == op)
         e.push_back (instruction (SAVE, n2, 0, 0));
+    return true;
+}
+
+bool vmcompiler::gcomment (derivs_t& p)
+{
+    std::wstring s;
+    wchar_t c;
+    while (! lex->rparen (p)) {
+        if (lex->first_group (p)) {
+            lex->regchar (p, c);
+            if (! gcomment (p))
+                return false;
+        }
+        else if (lex->cclass (p)) {
+            lex->ncclass (p);
+            do {
+                if (! lex->posixname (p, s) && ! lex->regchar (p, c))
+                    return false;
+            } while (! lex->rcclass (p));
+        }
+        else if (! lex->regchar (p, c))
+            return false;
+    }
     return true;
 }
 

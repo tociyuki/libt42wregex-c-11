@@ -816,6 +816,36 @@ struct testspec {
     {L"[\\d\\s\\w\\D\\S\\W]",
      L"cclass \":e:i:l:q:u:x\"\n"
      L"match\n"},
+
+    {L"a(?#comment)b",
+     L"char 'a'\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L"a(?#comment (?#(?#nest) ok))b",
+     L"char 'a'\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L"a(?#in comment parens \\(\\(\\) [(] [(] [)] must be escaped)b",
+     L"char 'a'\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L"a(?#(?<=comment)(?=out)[[:complex:]]{2,3}?expression)b",
+     L"char 'a'\n"
+     L"char 'b'\n"
+     L"match\n"},
+
+    {L"(?#comment (?:untouch) (save) and (counter){2,3})(a{1,3})",
+     L"save 2\n"
+     L"reset %0\n"
+     L"rep 1,3,%0\n"
+     L"split 0,2\n"
+     L"char 'a'\n"
+     L"jmp -4\n"
+     L"save 3\n"
+     L"match\n"},
 };
 
 int main (int argc, char* argv[])
