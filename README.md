@@ -86,6 +86,8 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / '(?!' regex ')'    # negative lookahead
            / '(?<=' regex ')'   # positive lookbehind
            / '(?<!' regex ')'   # negative lookbehind
+           / '(?#' comment ')'  # comment available nested parens
+                                #     incompatiblility from perl5
                                 ## option controls (?imsx:..) are not implemented
            / '.'                # any character includings with '\n'
            / '[' cclass ']'     # character class
