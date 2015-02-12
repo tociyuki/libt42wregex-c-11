@@ -497,15 +497,19 @@ bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
     return true;
 }
 
+// gcomment <- '(?#' pcomment ')'
+// pcomment <- ([^\[()]* / '(' pcomment ')' / '[' (posixname / regchar)+ ']')*
 bool vmcompiler::gcomment (derivs_t& p)
 {
     std::wstring s;
     wchar_t c;
-    while (! lex->rparen (p)) {
-        if (lex->first_group (p)) {
+    int plevel = 1;
+    while (plevel > 0) {
+        if (lex->rparen (p))
+            --plevel;
+        else if (lex->first_group (p)) {
             lex->regchar (p, c);
-            if (! gcomment (p))
-                return false;
+            ++plevel;
         }
         else if (lex->cclass (p)) {
             lex->ncclass (p);
