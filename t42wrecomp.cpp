@@ -511,19 +511,15 @@ bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
 //      lefttok
 //      RESET   %r
 //      INCJMP  +0,+0,%r
-//  L1: IFELSE  L2,L3
+//  L1: SPLIT   +0,L3
 //      righttok
-//      MATCH
-//  L2: DECJMP  L1,L7,%r
-//  L3: IFELSE  L4,L5
+//  L2: DECJMP  L1,L6,%r
+//  L3: SPLIT   +0,L5
 //      lefttok
-//      MATCH
 //  L4: INCJMP  L1,L1,%r
-//  L5: IFELSE  L6,+0   
-//      e1
-//      MATCH
-//  L6: JMP     L1
-//  L7:
+//  L5: e1
+//      JMP     L1
+//  L6:
 bool vmcompiler::gnest (derivs_t& p, compenv& a, program& e)
 {
     program lefttok, righttok, e1;
@@ -540,18 +536,14 @@ bool vmcompiler::gnest (derivs_t& p, compenv& a, program& e)
     e.insert (e.end (), lefttok.begin (), lefttok.end ());
     e.push_back (instruction (RESET, 0, 0, r));
     e.push_back (instruction (INCJMP, 0, 0, r));
-    e.push_back (instruction (IFELSE, n1 + 1, n1 + 2, 0));
+    e.push_back (instruction (SPLIT, 0, n1 + 1, 0));
     e.insert (e.end (), righttok.begin (), righttok.end ());
-    e.push_back (instruction (MATCH));
-    e.push_back (instruction (DECJMP, -n1 - 3, n2 + n3 + 6, r));
-    e.push_back (instruction (IFELSE, n2 + 1, n2 + 2, 0));
+    e.push_back (instruction (DECJMP, -n1 - 2, n2 + n3 + 3, r));
+    e.push_back (instruction (SPLIT, 0, n2 + 1, 0));
     e.insert (e.end (), lefttok.begin (), lefttok.end ());
-    e.push_back (instruction (MATCH));
-    e.push_back (instruction (INCJMP, -n1 - n2 - 6, -n1 - n2 - 6, r));
-    e.push_back (instruction (IFELSE, n3 + 1, 0, 0));
+    e.push_back (instruction (INCJMP, -n1 - n2 - 4, -n1 - n2 - 4, r));
     e.insert (e.end (), e1.begin (), e1.end ());
-    e.push_back (instruction (MATCH));
-    e.push_back (instruction (JMP, -n1 - n2 - n3 - 9, 0, 0));
+    e.push_back (instruction (JMP, -n1 - n2 - n3 - 5, 0, 0));
     return true;
 }
 

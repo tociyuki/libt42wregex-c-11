@@ -140,19 +140,6 @@ bool epsilon_closure::advance (vmthread& th0, string_pointer const sp0, int cons
                 else if (ct == 0)
                     addthread (rdy, vmthread{th.ip + 1, th.cap, th.cnt}, sp + d, d);
                 break;
-            case IFELSE:
-                {
-                    vmthread th1{th.ip + 1, th.cap, th.cnt};
-                    if (advance (th1, sp, +1)) {
-                        sp = th1.cap->at (1) - d;
-                        addthread (rdy, vmthread{op.x + th.ip + 1, th1.cap, th1.cnt}, sp + d, d);
-                    }
-                    else if (op.y != 0) {
-                        sp -= d;    // backtrack
-                        addthread (rdy, vmthread{op.y + th.ip + 1, th.cap, th.cnt}, sp + d, d);
-                    }
-                }
-                break;
             case MATCH:
                 th0.cap = th.update (1, sp);
                 match = true;
