@@ -673,15 +673,16 @@ void test29 (test::simple& ts)
 void test30 (test::simple& ts)
 {
     t42::wregex::capture_list m;
-    t42::wregex re1 (L"(?*<|>|[^<>]*)");
+    t42::wregex re1 (L"(?*<|>|[^<>])");
     std::wstring s1 (L"<a<b<>c<d>>e<f>g>!");
     std::wstring::size_type rc1 = re1.exec (s1, m, 0);
-    ts.ok (rc1 == 17, L"qr/(?*<|>|[^<>]*)/ =~ \"<a<b<>c<d>>e<f>g>\"_\"!\"");
+    ts.ok (rc1 == 17, L"qr/(?*<|>|[^<>])/ =~ \"<a<b<>c<d>>e<f>g>\"_\"!\"");
 
-    t42::wregex re2 (L"(?*[/][*]|[*][/]|.?)");
-    std::wstring s2 (L"/*c * /*o/**/m*/m/* /e*/nt*/!");
+    //t42::wregex re2 (L"(?*/\\*|\\*/|(?!/\\*|\\*/).)");
+    t42::wregex re2 (L"(?*/\\*|\\*/|[^/*]|/(?!\\*)|\\*(?!/))");
+    std::wstring s2 (L"/*c * /*o/**/m*/m//* /e**/nt*/!");
     std::wstring::size_type rc2 = re2.exec (s2, m, 0);
-    ts.ok (rc2 == 28, L"qr/(?*[/][*]|[*][/]|.?)/ =~ \"/*c * /*o/**/m*/m/* /e*/nt*/\"_\"!\"");
+    ts.ok (rc2 == 30, L"qr/(?*/\\*|\\*/|[^/*]|/(?!\\*)|\\*(?!/))/ =~ \"/*c * /*o/**/m*/m//* /e**/nt*/\"_\"!\"");
 }
 
 int main (int argc, char* argv[])

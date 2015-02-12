@@ -865,38 +865,47 @@ struct testspec {
      L"save 3\n"
      L"match\n"},
 
-    {L"(?*<|>|[^<>]*)",
+    {L"(?*<|>|[^<>])",
      L"char '<'\n"
      L"reset %0\n"
      L"incjmp 0,0,%0\n"
      L"split 0,2\n"
      L"char '>'\n"
-     L"decjmp -3,7,%0\n"
+     L"decjmp -3,5,%0\n"
      L"split 0,2\n"
      L"char '<'\n"
      L"incjmp -6,-6,%0\n"
-     L"split 0,2\n"
      L"ncclass \"\\<\\>\"\n"
-     L"jmp -3\n"
-     L"jmp -10\n"
+     L"jmp -8\n"
      L"match\n"},
 
-    {L"(?*[/][*]|[*][/]|.?)",
-     L"cclass \"\\/\"\n"
-     L"cclass \"\\*\"\n"
+    {L"(?*/\\*|\\*/|[^/*]|/(?!\\*)|\\*(?!/))",
+     L"char '/'\n"
+     L"char '*'\n"
      L"reset %0\n"
      L"incjmp 0,0,%0\n"
      L"split 0,3\n"
-     L"cclass \"\\*\"\n"
-     L"cclass \"\\/\"\n"
-     L"decjmp -4,7,%0\n"
+     L"char '*'\n"
+     L"char '/'\n"
+     L"decjmp -4,18,%0\n"
      L"split 0,3\n"
-     L"cclass \"\\/\"\n"
-     L"cclass \"\\*\"\n"
+     L"char '/'\n"
+     L"char '*'\n"
      L"incjmp -8,-8,%0\n"
-     L"split 0,1\n"
-     L"any\n"
-     L"jmp -11\n"
+     L"split 0,2\n"
+     L"ncclass \"\\/\\*\"\n"
+     L"jmp 10\n"
+     L"split 0,5\n"
+     L"char '/'\n"
+     L"nlkahead 0,2\n"
+     L"char '*'\n"
+     L"match\n"
+     L"jmp 4\n"
+     L"char '*'\n"
+     L"nlkahead 0,2\n"
+     L"char '/'\n"
+     L"match\n"
+     L"jmp -22\n"
      L"match\n"},
 };
 

@@ -86,11 +86,10 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / '(?<!' regex ')'   # negative lookbehind
            / '(?#' comment ')'  # comment available nested parens
            / '(?*' cat '|' cat '|' regex ')'
-                # HIGHLY EXPERIMENTAL: nested pattern
-                #  (?*\(|\)|[^()]*) matches "((((a)b)()cd))"
-                #  (?*\/\*|\*\/|.?) matches "/*comment/*out/**/*/*/"
-                # since nested patterns often drop vm into the infinite loop,
-                # use carefully!
+                # HIGHLY EXPERIMENTAL: nested parences pattern
+                #  (?*\(|\)|[^()]) matches "((((a)b)()cd))"
+                #  (?*/\*|\*/|[^/*]|/(?!\*)|\*(?!/)) matches "/*comment/*out/**/*/*/"
+                # since vm drops into the infinite loop, use carefully! 
                                 ## option controls (?imsx:..) are not implemented
            / '.'                # any character includings with '\n'
            / '[' cclass ']'     # character class
