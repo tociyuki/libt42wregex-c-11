@@ -4,6 +4,7 @@
 #include <utility>
 #include <cwctype>
 #include "t42wregex.hpp"
+#include <iostream>
 
 namespace t42 {
 namespace wpike {
@@ -216,6 +217,18 @@ void epsilon_closure::addthread (vmthread_que& q, vmthread&& th, string_pointer 
                 addthread (q, vmthread{th.ip + 1, th.cap, cnt}, sp, d);
             else if (op.x == op.y)
                 addthread (q, vmthread{th.ip + 2 + e[th.ip + 1].y, th.cap, cnt}, sp, d);
+        }
+        break;
+    case DECJMP:
+    case INCJMP:
+        {
+            int const di = DECJMP == op.opcode ? -1 : +1;
+            int const i = th.cnt->at (op.r) + di;
+            counter_ptr cnt = th.preset (op.r, i);
+            if (i > 0)
+                addthread (q, vmthread{th.ip + 1 + op.x, th.cap, cnt}, sp, d);
+            else
+                addthread (q, vmthread{th.ip + 1 + op.y, th.cap, cnt}, sp, d);
         }
         break;
     case JMP:

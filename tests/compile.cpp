@@ -155,6 +155,24 @@ std::wstring list (std::wstring const& s)
             t += std::to_wstring (op.r);
             t += L"\n";
             break;
+        case t42::wpike::INCJMP:
+            t += L"incjmp ";
+            t += std::to_wstring (op.x);
+            t += L",";
+            t += std::to_wstring (op.y);
+            t += L",%";
+            t += std::to_wstring (op.r);
+            t += L"\n";
+            break;
+        case t42::wpike::DECJMP:
+            t += L"decjmp ";
+            t += std::to_wstring (op.x);
+            t += L",";
+            t += std::to_wstring (op.y);
+            t += L",%";
+            t += std::to_wstring (op.r);
+            t += L"\n";
+            break;
         default:
             t += L"?\n";
         }
@@ -845,6 +863,40 @@ struct testspec {
      L"char 'a'\n"
      L"jmp -4\n"
      L"save 3\n"
+     L"match\n"},
+
+    {L"(?*<|>|[^<>]*)",
+     L"char '<'\n"
+     L"reset %0\n"
+     L"incjmp 0,0,%0\n"
+     L"split 0,2\n"
+     L"char '>'\n"
+     L"decjmp -3,7,%0\n"
+     L"split 0,2\n"
+     L"char '<'\n"
+     L"incjmp -6,-6,%0\n"
+     L"split 0,2\n"
+     L"ncclass \"\\<\\>\"\n"
+     L"jmp -3\n"
+     L"jmp -10\n"
+     L"match\n"},
+
+    {L"(?*[/][*]|[*][/]|.?)",
+     L"cclass \"\\/\"\n"
+     L"cclass \"\\*\"\n"
+     L"reset %0\n"
+     L"incjmp 0,0,%0\n"
+     L"split 0,3\n"
+     L"cclass \"\\*\"\n"
+     L"cclass \"\\/\"\n"
+     L"decjmp -4,7,%0\n"
+     L"split 0,3\n"
+     L"cclass \"\\/\"\n"
+     L"cclass \"\\*\"\n"
+     L"incjmp -8,-8,%0\n"
+     L"split 0,1\n"
+     L"any\n"
+     L"jmp -11\n"
      L"match\n"},
 };
 

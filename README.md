@@ -60,11 +60,9 @@ SYNTAX
 
 Here is the t42::wregex's definition in Parsing Expression Grammar.
 
-    regex <- cat '|' regex      # alternative
-           / cat
+    regex <- cat ('|' cat)*     # alternative
 
-    cat   <- term cat           # sequence of terms
-           /
+    cat   <- term*              # sequence of terms
 
     term  <- factor '?'         # zero or one greedy
            / factor '*'         # zero or more greedy
@@ -87,7 +85,12 @@ Here is the t42::wregex's definition in Parsing Expression Grammar.
            / '(?<=' regex ')'   # positive lookbehind
            / '(?<!' regex ')'   # negative lookbehind
            / '(?#' comment ')'  # comment available nested parens
-                                #     incompatiblility from perl5
+           / '(?*' cat '|' cat '|' regex ')'
+                # HIGHLY EXPERIMENTAL: nested pattern
+                #  (?*\(|\)|[^()]*) matches "((((a)b)()cd))"
+                #  (?*\/\*|\*\/|.?) matches "/*comment/*out/**/*/*/"
+                # since nested patterns often drop vm into the infinite loop,
+                # use carefully!
                                 ## option controls (?imsx:..) are not implemented
            / '.'                # any character includings with '\n'
            / '[' cclass ']'     # character class

@@ -96,6 +96,7 @@ struct vmlex {
     virtual bool lkbehind (derivs_t& p) { return scan (p, L"%(?<="); }
     virtual bool nlkbehind (derivs_t& p) { return scan (p, L"%(?<!"); }
     virtual bool gcomment (derivs_t& p) { return scan (p, L"%(?#"); }
+    virtual bool gnest (derivs_t& p) { return scan (p, L"%(?*"); }
     virtual bool rparen (derivs_t& p) { return scan (p, L"%)"); }
     virtual bool cclass (derivs_t& p) { return scan (p, L"["); }
     virtual bool ncclass (derivs_t& p) { return scan (p, L"^"); }
@@ -217,6 +218,7 @@ private:
     bool term (derivs_t& p, compenv& a, program& e);
     bool factor (derivs_t& p, compenv& a, program& e);
     bool group (derivs_t& p, compenv& a, program& e);
+    bool gnest (derivs_t& p, compenv& a, program& e);
     bool gcomment (derivs_t& p);
     bool cclass (derivs_t& p, compenv& a, program& e);
     bool clschar (derivs_t& p, compenv& a, std::wstring& span);
@@ -438,7 +440,7 @@ bool vmcompiler::factor (derivs_t& p, compenv& a, program& e)
     return true;
 }
 
-// group <- '(' ('?:' / '?=' / '?!' / '?<=' / '?<!' / '?#')? alt ')'
+// group <- '(' ('?:' / '?=' / '?!' / '?<=' / '?<!' / '?#' / '?*')? alt ')'
 //
 // (e)                    (?:e)                 e1(?#e)e2
 //       SAVE  2*n              e                   e1
@@ -458,10 +460,14 @@ bool vmcompiler::factor (derivs_t& p, compenv& a, program& e)
 //       e1                     e1
 //       MATCH                  MATCH
 //    L2                     L2
+//
+// (?* e1 | e2 | e3) see gnest() member function
 bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
 {
     if (lex->gcomment (p))
         return gcomment (p);
+    else if (lex->gnest (p))
+        return gnest (p, a, e);
     operation op = lex->group (p) ? SAVE
                  : lex->lparen (p) ? MATCH
                  : lex->lkahead (p) ? LKAHEAD
@@ -494,6 +500,50 @@ bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
     }
     if (SAVE == op)
         e.push_back (instruction (SAVE, n2, 0, 0));
+    return true;
+}
+
+// gnest <- '(?*' lefttok '|' righttok '|' e1 ')'
+// lefttok <- cat
+// righttok <- cat
+// e1 <- alt
+//
+//      lefttok
+//      RESET   %r
+//      INCJMP  +0,+0,%r
+//  L1: SPLIT   +0,L3
+//      righttok
+//  L2: DECJMP  L1,L6,%r
+//  L3: SPLIT   +0,L5
+//      lefttok
+//  L4: INCJMP  L1,L1,%r
+//  L5: e1
+//      JMP     L1
+//  L6:
+bool vmcompiler::gnest (derivs_t& p, compenv& a, program& e)
+{
+    program lefttok, righttok, e1;
+    if (! (cat (p, a, lefttok) && lex->alt (p)))
+        return false;
+    if (! (cat (p, a, righttok) && lex->alt (p)))
+        return false;
+    if (! (alt (p, a, e1) && lex->rparen (p)))
+        return false;
+    int const n1 = righttok.size ();
+    int const n2 = lefttok.size ();
+    int const n3 = e1.size ();
+    int const r = mreg++;
+    e.insert (e.end (), lefttok.begin (), lefttok.end ());
+    e.push_back (instruction (RESET, 0, 0, r));
+    e.push_back (instruction (INCJMP, 0, 0, r));
+    e.push_back (instruction (SPLIT, 0, n1 + 1, 0));
+    e.insert (e.end (), righttok.begin (), righttok.end ());
+    e.push_back (instruction (DECJMP, -n1 - 2, n2 + n3 + 3, r));
+    e.push_back (instruction (SPLIT, 0, n2 + 1, 0));
+    e.insert (e.end (), lefttok.begin (), lefttok.end ());
+    e.push_back (instruction (INCJMP, -n1 - n2 - 4, -n1 - n2 - 4, r));
+    e.insert (e.end (), e1.begin (), e1.end ());
+    e.push_back (instruction (JMP, -n1 - n2 - n3 - 5, 0, 0));
     return true;
 }
 

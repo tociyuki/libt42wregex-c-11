@@ -10,7 +10,8 @@ namespace wpike {
 enum operation {
     MATCH, CHAR, ANY, CCLASS, NCCLASS, BKREF, // non-epsilon
     BOL, EOL, BOS, EOS, WORDB, NWORDB, SAVE,  // epsilon
-    JMP, SPLIT, LKAHEAD, NLKAHEAD, LKBEHIND, NLKBEHIND, RESET, REP // epsilon
+    JMP, SPLIT, LKAHEAD, NLKAHEAD, LKBEHIND, NLKBEHIND, // epsilon
+    DECJMP, INCJMP, RESET, REP // epsilon
 };
 
 struct instruction {
