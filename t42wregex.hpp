@@ -8,7 +8,7 @@ namespace t42 {
 namespace wpike {
 
 enum operation {
-    MATCH, CHAR, ANY, CCLASS, NCCLASS, BKREF, // non-epsilon
+    MATCH, CHAR, ANY, CCLASS, NCCLASS, BKREF, IFELSE, // non-epsilon
     BOL, EOL, BOS, EOS, WORDB, NWORDB, SAVE,  // epsilon
     JMP, SPLIT, LKAHEAD, NLKAHEAD, LKBEHIND, NLKBEHIND, // epsilon
     DECJMP, INCJMP, RESET, REP // epsilon
