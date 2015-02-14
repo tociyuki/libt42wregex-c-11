@@ -508,18 +508,17 @@ bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
 // righttok <- cat
 // e1 <- alt
 //
-//      lefttok
 //      RESET   %r
-//      INCJMP  +0,+0,%r
-//  L1: SPLIT   +0,L3
+//      JMP     L3
+//  L1: SPLIT   +0,L2
 //      righttok
-//  L2: DECJMP  L1,L6,%r
-//  L3: SPLIT   +0,L5
-//      lefttok
-//  L4: INCJMP  L1,L1,%r
-//  L5: e1
+//      DECJMP  L1,L5,%r
+//  L2: SPLIT   +0,L4
+//  L3: lefttok
+//      INCJMP  L1,L1,%r
+//  L4: e1
 //      JMP     L1
-//  L6:
+//  L5:
 bool vmcompiler::gnest (derivs_t& p, compenv& a, program& e)
 {
     program lefttok, righttok, e1;
@@ -533,9 +532,8 @@ bool vmcompiler::gnest (derivs_t& p, compenv& a, program& e)
     int const n2 = lefttok.size ();
     int const n3 = e1.size ();
     int const r = mreg++;
-    e.insert (e.end (), lefttok.begin (), lefttok.end ());
     e.push_back (instruction (RESET, 0, 0, r));
-    e.push_back (instruction (INCJMP, 0, 0, r));
+    e.push_back (instruction (JMP, n1 + 3, 0, 0));
     e.push_back (instruction (SPLIT, 0, n1 + 1, 0));
     e.insert (e.end (), righttok.begin (), righttok.end ());
     e.push_back (instruction (DECJMP, -n1 - 2, n2 + n3 + 3, r));

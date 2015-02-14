@@ -866,9 +866,8 @@ struct testspec {
      L"match\n"},
 
     {L"(?*<|>|[^<>])",
-     L"char '<'\n"
      L"reset %0\n"
-     L"incjmp 0,0,%0\n"
+     L"jmp 4\n"
      L"split 0,2\n"
      L"char '>'\n"
      L"decjmp -3,5,%0\n"
@@ -880,10 +879,8 @@ struct testspec {
      L"match\n"},
 
     {L"(?*/\\*|\\*/|[^/*]|/(?!\\*)|\\*(?!/))",
-     L"char '/'\n"
-     L"char '*'\n"
      L"reset %0\n"
-     L"incjmp 0,0,%0\n"
+     L"jmp 5\n"
      L"split 0,3\n"
      L"char '*'\n"
      L"char '/'\n"
