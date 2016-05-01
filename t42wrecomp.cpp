@@ -583,9 +583,9 @@ bool vmcompiler::gcomment (derivs_t& p)
 //  S0 : ERROR
 //  S1 : MATCH
 //  S2 : ncclass S3 | csetname S6 | clschar S4
-//  S3 : csetname S5 | clschar S4
+//  S3 : csetname S6 | clschar S4
 //  S4 : rcclass S1 | range S5 | csetname S6 | clschar S4
-//  S5 : rcclass S1 | range S7 | clschar S3
+//  S5 : rcclass S1 | range S7 | clschar S4
 //  S6 : rcclass S1 | range S7 | csetname S6 | clschar S4
 //  S7 : rcclass S1
 //
