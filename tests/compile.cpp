@@ -708,8 +708,8 @@ struct testspec {
      L"ncclass \"\\[\"\n"
      L"match\n"},
 
-    {L"[^]]",
-     L"ncclass \"\\]\"\n"
+    {L"[^]",
+     L"cclass \"\\^\"\n"
      L"match\n"},
 
     {L"a(?=b).",

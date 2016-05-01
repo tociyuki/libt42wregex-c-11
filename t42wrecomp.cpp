@@ -30,11 +30,9 @@ bool scan (derivs_t& sp0, std::wstring pat, std::vector<derivs_t>& m)
             if (ip + 4 < pat.end () && L'{' == *ip && L',' == ip[2] && L'}' == ip[4])
                 n1 = c7toi (ip[1]), n2 = c7toi (ip[3]), ip += 5;
             for (int i = 0; i < n2; ++i, ++sp) {
-                if (L'\0' != *sp) {
-                    int x = c7toi (*sp);
-                    if (dot || (hi == 0 && c == *sp) || (lo <= x && x < hi))
-                        continue;
-                }
+                int x = L'\0' != *sp ? c7toi (*sp) : L'\0';
+                if (dot || (hi == 0 && c == *sp) || (lo <= x && x < hi))
+                    continue;
                 if (i < n1)
                     return false;
                 break;
@@ -101,7 +99,7 @@ struct vmlex {
     virtual bool cclass (derivs_t& p) { return scan (p, L"["); }
     virtual bool ncclass (derivs_t& p) { return scan (p, L"^"); }
     virtual bool rcclass (derivs_t& p) { return scan (p, L"]"); }
-    virtual bool range (derivs_t& p) { return scan_not (p, L"-", L"]"); }
+    virtual bool range (derivs_t& p) { return scan (p, L"-"); }
 
     virtual bool repnn (derivs_t& p, int& n1, int& n2)
     {
@@ -221,6 +219,7 @@ private:
     bool gnest (derivs_t& p, compenv& a, program& e);
     bool gcomment (derivs_t& p);
     bool cclass (derivs_t& p, compenv& a, program& e);
+    bool csetname (derivs_t& p, compenv& a, std::wstring& span);
     bool clschar (derivs_t& p, compenv& a, std::wstring& span);
     bool encode_posixname (std::wstring name, std::wstring& s);
 };
@@ -510,15 +509,15 @@ bool vmcompiler::group (derivs_t& p, compenv& a, program& e)
 //
 //      RESET   %r
 //      JMP     L3
-//  L1: SPLIT   +0,L2
+//  L1  SPLIT   +0,L2
 //      righttok
 //      DECJMP  L1,L5,%r
-//  L2: SPLIT   +0,L4
-//  L3: lefttok
+//  L2  SPLIT   +0,L4
+//  L3  lefttok
 //      INCJMP  L1,L1,%r
-//  L4: e1
+//  L4  e1
 //      JMP     L1
-//  L5:
+//  L5
 bool vmcompiler::gnest (derivs_t& p, compenv& a, program& e)
 {
     program lefttok, righttok, e1;
@@ -580,26 +579,68 @@ bool vmcompiler::gcomment (derivs_t& p)
 //
 // [a-z\d[:blank:]]               [^a-z\d[:blank:]]
 //      CCLASS  "\\a-\\z:e:c"           NCCLASS  "\\a-\\z:e:c"
+//
+//  S0 : ERROR
+//  S1 : MATCH
+//  S2 : ncclass S3 | csetname S6 | clschar S4
+//  S3 : csetname S5 | clschar S4
+//  S4 : rcclass S1 | range S5 | csetname S6 | clschar S4
+//  S5 : rcclass S1 | range S7 | clschar S3
+//  S6 : rcclass S1 | range S7 | csetname S6 | clschar S4
+//  S7 : rcclass S1
+//
 bool vmcompiler::cclass (derivs_t& p, compenv& a, program& e)
 {
     std::wstring s;
-    operation op = lex->ncclass (p) ? NCCLASS : CCLASS;
-    if (! clschar (p, a, s))
-        return false;
-    while (! lex->rcclass (p)) {
-        if (lex->range (p))
-            s.push_back (L'-');
-        if (lex->range (p))
-            return false;
-        if (! clschar (p, a, s))
-            return false;
+    operation op = CCLASS;
+    int next_state = 2;
+    while (next_state > 1) {
+        int const state = next_state;
+        next_state = 0;
+        if (2 == state || 3 == state) {
+            if (2 == state && lex->ncclass (p)) {
+                op = NCCLASS;
+                next_state = 3;
+            }
+            else if (3 == state && lex->rcclass (p)) {
+                op = CCLASS;
+                s.push_back (L'\\');
+                s.push_back (L'^');
+                next_state = 1;
+            }
+            else if (csetname (p, a, s))
+                next_state = 6;
+            else if (clschar (p, a, s))
+                next_state = 4;
+        }
+        else if (lex->rcclass (p)) {
+            if (5 == state || 7 == state) {
+                s.push_back (L'\\');
+                s.push_back (L'-');
+            }
+            next_state = 1;
+        }
+        else {
+            if (7 == state)
+                break;
+            if (5 == state)
+                s.push_back (L'-');
+            if (lex->range (p))
+                next_state = 4 == state ? 5 : 7;
+            else if (csetname (p, a, s))
+                next_state = 5 == state ? 0 : 6;
+            else if (clschar (p, a, s))
+                next_state = 4;
+        }
     }
+    if (! next_state)
+        return false;
     e.push_back (instruction (op, s));
     return true;
 }
 
-// clschar <- '\\' [dswDWS] / posixname / regchar
-bool vmcompiler::clschar (derivs_t& p, compenv& a, std::wstring& s)
+// csetname <- '\\' [dswDWS] / posixname
+bool vmcompiler::csetname (derivs_t& p, compenv& a, std::wstring& s)
 {
     std::wstring name;
     if (lex->posixname (p, name)) {
@@ -608,13 +649,19 @@ bool vmcompiler::clschar (derivs_t& p, compenv& a, std::wstring& s)
     }
     else if (lex->bsname (p, name))
         encode_posixname (name, s);
-    else {
-        wchar_t c;
-        if (! lex->regchar (p, c))
-            return false;
-        s.push_back (L'\\');
-        s.push_back (c);
-    }
+    else
+        return false;
+    return true;
+}
+
+// clschar <- regchar
+bool vmcompiler::clschar (derivs_t& p, compenv& a, std::wstring& s)
+{
+    wchar_t c;
+    if (! lex->regchar (p, c))
+        return false;
+    s.push_back (L'\\');
+    s.push_back (c);
     return true;
 }
 
